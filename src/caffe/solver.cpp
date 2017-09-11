@@ -181,6 +181,7 @@ void Solver<Dtype>::Step(int iters) {
   const int start_iter = iter_;
   const int stop_iter = iter_ + iters;
   int average_loss = this->param_.average_loss();
+  
   losses_.clear();
   smoothed_loss_ = 0;
   iteration_timer_.Start();
@@ -198,7 +199,6 @@ void Solver<Dtype>::Step(int iters) {
         break;
       }
     }
-
     for (int i = 0; i < callbacks_.size(); ++i) {
       callbacks_[i]->on_start();
     }

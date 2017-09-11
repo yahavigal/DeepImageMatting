@@ -1,0 +1,19 @@
+net: "/home/or/caffe/or/deepMask/proto/val_sharpMaskVGG.prototxt"
+test_iter: 6250 # number of images in test / batch size
+test_interval: 15625 # how many train iterations for each test
+base_lr: 0.000001
+type: "Adam"
+lr_policy: "fixed"
+stepsize: 20
+gamma: 0.1
+snapshot_diff: false
+display: 1000 # display train result
+max_iter: 45000000
+momentum: 0.5
+weight_decay: 0.00005
+snapshot: 1000 # save train parameters 
+snapshot_prefix: "/home/or/caffe/or/deepMask/snapshots/"
+solver_mode: GPU
+
+
+

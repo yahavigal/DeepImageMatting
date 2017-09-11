@@ -1,0 +1,346 @@
+name: "fast portrait matting"
+
+input: "data"
+input_dim: 1
+input_dim: 4
+input_dim: 128
+input_dim: 128
+
+input: "alpha_gt"
+input_dim: 1
+input_dim: 1
+input_dim: 128
+input_dim: 128
+#----------------- segmentation block------------------------
+layer {
+  name: "conv_1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv_1"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 13
+    kernel_size: 3
+    stride: 2
+    pad: 1
+  }
+}
+layer {
+  name: "pool_1"
+  type: "Pooling"
+  bottom: "data"
+  top: "pool_1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "concat_1"
+  bottom: "pool_1"
+  bottom: "conv_1"
+  top: "concat_1"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_2"
+  type: "Convolution"
+  bottom: "concat_1"
+  top: "conv_2"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 16
+    pad: 2
+    kernel_size: 3
+    dilation: 2
+  }
+}
+layer {
+  name: "relu_2"
+  type: "ReLU"
+  bottom: "conv_2"
+  top: "conv_2"
+  relu_param{ negative_slope: 0.2 }
+}
+layer {
+  name: "concat_2"
+  bottom: "conv_2"
+  bottom: "concat_1"
+  top: "concat_2"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_3"
+  type: "Convolution"
+  bottom: "concat_2"
+  top: "conv_3"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 16
+    kernel_size: 3
+    pad: 4
+    dilation: 4
+  }
+}
+layer {
+  name: "relu_3"
+  type: "ReLU"
+  bottom: "conv_3"
+  top: "conv_3"
+  relu_param{ negative_slope: 0.2 }
+}
+layer {
+  name: "concat_3"
+  bottom: "conv_3"
+  bottom: "concat_2"
+  top: "concat_3"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_4"
+  type: "Convolution"
+  bottom: "concat_3"
+  top: "conv_4"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 16
+    kernel_size: 3
+    pad: 6
+    dilation: 6
+  }
+}
+layer {
+  name: "relu_4"
+  type: "ReLU"
+  bottom: "conv_4"
+  top: "conv_4"
+  relu_param{ negative_slope: 0.2 }
+}
+layer {
+  name: "concat_4"
+  bottom: "conv_4"
+  bottom: "concat_3"
+  top: "concat_4"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_5"
+  type: "Convolution"
+  bottom: "concat_4"
+  top: "conv_5"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 16
+    kernel_size: 3
+    pad: 8
+    dilation: 8
+  }
+}
+layer {
+  name: "relu_5"
+  type: "ReLU"
+  bottom: "conv_5"
+  top: "conv_5"
+  relu_param{ negative_slope: 0.2 }
+}
+layer {
+  name: "concat_5"
+  bottom: "conv_2"
+  bottom: "conv_3"
+  bottom: "conv_4"
+  bottom: "conv_5"
+  top: "concat_5"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_6"
+  type: "Convolution"
+  bottom: "concat_5"
+  top: "conv_6"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 2
+    kernel_size: 3
+    pad: 1
+  }
+}
+layer {
+	name: "upsampling"
+	type: "Deconvolution"
+	bottom: "conv_6"
+	top: "upsampling_1"
+  param { lr_mult: 0 decay_mult: 0 } 
+	convolution_param {
+    kernel_size: 4
+	 	stride: 2
+    num_output: 2
+    pad:  1
+    weight_filler: { type: "bilinear" }
+		bias_term: false
+  }
+}
+#------------------ feathering block inputs -------------------------
+layer {
+  name: "slicer_1"
+  type: "Slice"
+  bottom: "upsampling_1"
+  top: "background"
+  top: "foreground"
+  slice_param {
+    axis: 1
+    slice_point: 1
+  }
+}
+layer {
+  name: "data_squared"
+  type: "Eltwise"
+  bottom: "data"
+  bottom: "data"
+  top: "data_squared"
+  eltwise_param { operation: PROD }
+}
+layer {
+  name: "concat_foreground"
+  bottom: "foreground"
+  bottom: "foreground"
+  bottom: "foreground"
+  bottom: "foreground"
+  top: "concat_foreground"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "data_squared"
+  type: "Eltwise"
+  bottom: "data"
+  bottom: "concat_foreground"
+  top: "data_fg"
+  eltwise_param { operation: PROD }
+}
+layer {
+  name: "concat_feathering"
+  bottom: "data"
+  bottom: "background"
+  bottom: "foreground"
+  bottom: "data_squared"
+  bottom: "data_fg"
+  top: "concat_feathering"
+  type: "Concat"
+  concat_param { axis: 1 }
+}
+layer {
+  name: "conv_feathering_1"
+  type: "Convolution"
+  bottom: "concat_feathering"
+  top: "conv_feathering_1"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 8
+    kernel_size: 3
+    pad: 1
+  }
+}
+layer {
+  name: "bnorm_1"
+  type: "BatchNorm"
+  bottom: "conv_feathering_1"
+  top: "bn_1"
+  batch_norm_param { use_global_stats: false }
+}
+layer {
+  name: "relu_feathering_1"
+  type: "ReLU"
+  bottom: "bn_1"
+  top: "bn_1"
+  relu_param{ negative_slope: 0.2 }
+}
+layer {
+  name: "conv_feathering_2"
+  type: "Convolution"
+  bottom: "bn_1"
+  top: "conv_feathering_2"
+	param { lr_mult: 1 decay_mult: 1 }
+	param { lr_mult: 2 decay_mult: 1 }
+  convolution_param {
+    num_output: 3
+    kernel_size: 3
+    pad: 1
+  }
+}
+#------------------- feathering operation block ----------------------
+layer {
+  name: "slicer_2"
+  type: "Slice"
+  bottom: "conv_feathering_2"
+  top: "a"
+  top: "b"
+  top: "c"
+  slice_param {
+    axis: 1
+    slice_point: 1
+    slice_point: 2
+  }
+}
+layer {
+  name: "a_mult_bg"
+  type: "Eltwise"
+  bottom: "a"
+  bottom: "background"
+  top: "a_mult_bg"
+  eltwise_param { operation: PROD }
+}
+layer {
+  name: "b_mult_fg"
+  type: "Eltwise"
+  bottom: "b"
+  bottom: "foreground"
+  top: "b_mult_fg"
+  eltwise_param { operation: PROD }
+}
+layer {
+  name: "guided_filter"
+  type: "Eltwise"
+  bottom: "a_mult_bg"
+  bottom: "b_mult_fg"
+  bottom: "c"
+  top: "alpha_pred"
+  eltwise_param { operation: SUM }
+}
+#-------------------losses and IOU layers --------------------------
+layer {
+  name: "loss"
+  type: "AlphaPredictionLoss"
+  bottom: "alpha_pred"
+  bottom: "alpha_gt"
+  top: "loss"
+}
+#layer {
+#  name: "loss"
+#  type: "FeatheringCompositionalLoss"
+#  bottom: "alpha_pred"
+#  bottom: "alpha_gt"
+#  top: "comp_loss"
+#}
+layer {
+  name: "iou"
+  type: "MaskIOU"
+  bottom: "alpha_pred"
+  bottom: "alpha_gt"
+  top: "mask_accuracy"
+  threshold_param { threshold: 0.9 }
+}
+
+ 

@@ -1,3 +1,5 @@
+#include <Python.h>  // NOLINT(build/include_alpha)
+
 // Produce deprecation warnings (needs to come before arrayobject.h inclusion).
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
@@ -37,41 +39,6 @@
   } \
 } while (0)
 
-#if defined(_MSC_VER) && (_MSC_FULL_VER >= 190024210)
-// Workaround for VS 2015 Update 3 which breaks boost python
-// See: http://stackoverflow.com/questions/38261530/unresolved-external-symbols-since-visual-studio-2015-update-3-boost-python-link
-// and https://msdn.microsoft.com/vs-knownissues/vs2015-update3
-#define BP_GET_POINTER(cls) \
-namespace boost { \
-template <> \
-const volatile caffe::cls * \
-get_pointer(const volatile caffe::cls *c) { \
-    return c; \
-} \
-}
-
-#define BP_GET_POINTER_T(cls, dtype) BP_GET_POINTER(cls<dtype>)
-
-// forward declare the NCCL class
-// in case we are not using NCCL
-namespace caffe {
-template <typename Dtype> class NCCL;
-}
-
-BP_GET_POINTER_T(Net, float);
-BP_GET_POINTER_T(Layer, float);
-BP_GET_POINTER_T(Solver, float);
-BP_GET_POINTER_T(SGDSolver, float);
-BP_GET_POINTER_T(NesterovSolver, float);
-BP_GET_POINTER_T(AdaGradSolver, float);
-BP_GET_POINTER_T(RMSPropSolver, float);
-BP_GET_POINTER_T(AdaDeltaSolver, float);
-BP_GET_POINTER_T(AdamSolver, float);
-BP_GET_POINTER_T(NCCL, float);
-BP_GET_POINTER(Timer);
-
-#endif
-
 namespace bp = boost::python;
 
 namespace caffe {
@@ -86,18 +53,15 @@ void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
 
 void InitLog() {
   ::google::InitGoogleLogging("");
-#ifndef _MSC_VER
-  // this symbol is undefined on windows
   ::google::InstallFailureSignalHandler();
-#endif  // _MSC_VER
 }
 void InitLogLevel(int level) {
   FLAGS_minloglevel = level;
   InitLog();
 }
-void InitLogLevelPipe(int level, bool std_err) {
+void InitLogLevelPipe(int level, bool stderr) {
   FLAGS_minloglevel = level;
-  FLAGS_logtostderr = std_err;
+  FLAGS_logtostderr = stderr;
   InitLog();
 }
 void Log(const string& s) {
@@ -189,6 +153,12 @@ shared_ptr<Net<Dtype> > Net_Init_Load(
 void Net_Save(const Net<Dtype>& net, string filename) {
   NetParameter net_param;
   net.ToProto(&net_param, false);
+  WriteProtoToBinaryFile(net_param, filename.c_str());
+}
+
+void Net_Save2(const Net<Dtype>& net, string filename,bool snapshot_diff) {
+  NetParameter net_param;
+  net.ToProto(&net_param, snapshot_diff);
   WriteProtoToBinaryFile(net_param, filename.c_str());
 }
 
@@ -477,6 +447,7 @@ BOOST_PYTHON_MODULE(_caffe) {
     .def("_set_input_arrays", &Net_SetInputArrays,
         bp::with_custodian_and_ward<1, 2, bp::with_custodian_and_ward<1, 3> >())
     .def("save", &Net_Save)
+    .def("save", &Net_Save2)
     .def("save_hdf5", &Net_SaveHDF5)
     .def("load_hdf5", &Net_LoadHDF5)
     .def("before_forward", &Net_before_forward)
@@ -535,6 +506,7 @@ BOOST_PYTHON_MODULE(_caffe) {
     .def("restore", &Solver<Dtype>::Restore)
     .def("snapshot", &Solver<Dtype>::Snapshot)
     .def("share_weights", &share_weights)
+    .def("apply_update", &Solver<Dtype>::ApplyUpdate)
     .add_property("param", bp::make_function(&Solver<Dtype>::param,
               bp::return_value_policy<bp::copy_const_reference>()));
   BP_REGISTER_SHARED_PTR_TO_PYTHON(Solver<Dtype>);
