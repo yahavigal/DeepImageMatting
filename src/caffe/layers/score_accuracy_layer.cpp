@@ -49,7 +49,7 @@ namespace caffe
 
 
 #ifdef CPU_ONLY
-STUB_GPU(ScoreAccuracyLayer);
+STUB_GPU_FORWARD(ScoreAccuracyLayer,Forward);
 #endif
 	INSTANTIATE_CLASS(ScoreAccuracyLayer);
 	REGISTER_LAYER_CLASS(ScoreAccuracy);
