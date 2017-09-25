@@ -48,11 +48,12 @@ void classname<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom, \
 
 #define NO_GPU_CODE_BACKWARD(classname) \
 template <typename Dtype> \
-void classname<Dtype>::Backrward_gpu(const vector<Blob<Dtype>*>& top, \
+void classname<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top, \
     const vector<bool>& propagate_down, \
-    const vector<Blob<Dtype>*>& bottom) { Backward_cpu(top,bottom,propagate_down); } \
+    const vector<Blob<Dtype>*>& bottom) { Backward_cpu(top,propagate_down,bottom); } \
 
-#define NO_GPU_CODE(classname) NO_GPU_CODE_FORWARD(classname) NO_GPU_CODE_BACKWARD(classname)
+#define NO_GPU_CODE(classname) NO_GPU_CODE_FORWARD(classname) \
+                              NO_GPU_CODE_BACKWARD(classname)
 
 //
 // CUDA macros

@@ -123,6 +123,8 @@ void FeatheringCompositionalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dty
 
 #ifdef CPU_ONLY
 STUB_GPU(FeatheringCompositionalLossLayer);
+#else
+NO_GPU_CODE(FeatheringCompositionalLossLayer);
 #endif
 
 INSTANTIATE_CLASS(FeatheringCompositionalLossLayer);

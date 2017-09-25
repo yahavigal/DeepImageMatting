@@ -145,6 +145,8 @@ void MaskSoftPlusLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
 #ifdef CPU_ONLY
 STUB_GPU(MaskSoftPlusLossLayer);
+#else
+NO_GPU_CODE(MaskSoftPlusLossLayer);
 #endif
 
 INSTANTIATE_CLASS(MaskSoftPlusLossLayer);

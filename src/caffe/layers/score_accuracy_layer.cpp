@@ -50,6 +50,8 @@ namespace caffe
 
 #ifdef CPU_ONLY
 STUB_GPU_FORWARD(ScoreAccuracyLayer,Forward);
+#else
+NO_GPU_CODE_FORWARD(ScoreAccuracyLayer);
 #endif
 	INSTANTIATE_CLASS(ScoreAccuracyLayer);
 	REGISTER_LAYER_CLASS(ScoreAccuracy);

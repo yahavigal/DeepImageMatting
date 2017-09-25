@@ -174,6 +174,8 @@ void AlphaPredictionLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
 
 #ifdef CPU_ONLY
 STUB_GPU(AlphaPredictionLossLayer);
+#else
+NO_GPU_CODE(AlphaPredictionLossLayer);
 #endif
 
 INSTANTIATE_CLASS(AlphaPredictionLossLayer);

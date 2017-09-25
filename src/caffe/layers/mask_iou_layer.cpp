@@ -92,6 +92,8 @@ void MaskIOULayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 #ifdef CPU_ONLY
 STUB_GPU_FORWARD(MaskIOULayer,Forward);
+#else
+NO_GPU_CODE_FORWARD(MaskIOULayer);
 #endif
 
 INSTANTIATE_CLASS(MaskIOULayer);
