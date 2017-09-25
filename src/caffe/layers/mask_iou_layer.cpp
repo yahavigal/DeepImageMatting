@@ -91,7 +91,7 @@ void MaskIOULayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(MaskAccuracyLayer);
+STUB_GPU_FORWARD(MaskIOULayer,Forward);
 #endif
 
 INSTANTIATE_CLASS(MaskIOULayer);

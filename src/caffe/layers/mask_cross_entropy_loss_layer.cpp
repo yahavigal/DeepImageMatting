@@ -145,7 +145,7 @@ void MaskCrossEntropyLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(AlphaPredictionLossLayer);
+STUB_GPU(MaskCrossEntropyLossLayer);
 #endif
 
 INSTANTIATE_CLASS(MaskCrossEntropyLossLayer);

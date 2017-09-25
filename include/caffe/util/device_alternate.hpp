@@ -29,6 +29,7 @@ void classname<Dtype>::funcname##_##gpu(const vector<Blob<Dtype>*>& top, \
     const vector<bool>& propagate_down, \
     const vector<Blob<Dtype>*>& bottom) { NO_GPU; } \
 
+
 #else  // Normal GPU + CPU Caffe.
 
 #include <cublas_v2.h>
