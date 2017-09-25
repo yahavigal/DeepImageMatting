@@ -3,11 +3,20 @@
 
 namespace caffe 
 {
+template <typename Dtype>
+MaskIOULayer<Dtype>::MaskIOULayer(const LayerParameter& param):Layer<Dtype>(param) 
+{
+  m_thresh = param.threshold_param().threshold();
+  if (param.has_loss_param() == true && param.loss_param().has_ignore_label() == true)
+    m_ignore_label = param.loss_param().ignore_label();
+  else
+    m_ignore_label = int(0);
+}
 	template <typename Dtype>
 	void MaskIOULayer<Dtype>::LayerSetUp(
 		const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
-    
+    m_use_trimap = bottom.size() == 3;
 }
 
 
@@ -31,6 +40,9 @@ void MaskIOULayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 	Blob<Dtype>* predictions = bottom[0];
 	Blob<Dtype>* masks = bottom[1];
+  Blob<Dtype>* trimaps = NULL;
+  if (m_use_trimap == true)
+    trimaps = bottom[2];
 
 	int num = bottom[0]->shape(0);
 	Dtype batchIOU = 0;
@@ -56,6 +68,12 @@ void MaskIOULayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 			{
 				Dtype mask_kj = cvMaskCopy.at<Dtype>(k, j);
 				Dtype pred_kj = cvPredictionCopy.at<Dtype>(k, j);
+        if (m_use_trimap == true)
+        {
+          Dtype trimap_val = trimaps->data_at(i,3,k,j);
+          if (trimap_val != m_ignore_label)
+            continue;
+        }
 				if (mask_kj > m_thresh || pred_kj > m_thresh)
           unionPixels++;
         if (mask_kj > m_thresh && pred_kj > m_thresh)

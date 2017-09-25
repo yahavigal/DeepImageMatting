@@ -7,6 +7,17 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 namespace caffe {
+template <typename Dtype>
+AlphaPredictionLossLayer<Dtype>::AlphaPredictionLossLayer(const LayerParameter& param):LossLayer<Dtype>(param) 
+{
+   m_epsilonSquare = (1e-6)*(1e-6);
+   if (param.has_loss_param() == true && param.loss_param().has_ignore_label() == true)
+    m_ignore_label = param.loss_param().ignore_label();
+   else
+    m_ignore_label = int(0);
+}
+
+
 
 template <typename Dtype>
 void AlphaPredictionLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
@@ -25,7 +36,9 @@ void AlphaPredictionLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bot
     CHECK_EQ(m_maskWidth, m_predictionWidth) <<"prediction and mask must have the same widht";
     CHECK_EQ(bottom[1]->shape(1), 1);
 
-    m_epsilonSquare = (1e-6)*(1e-6);
+   
+    m_use_trimap = bottom.size() == 3;
+    
 
 }
 
@@ -44,9 +57,13 @@ void AlphaPredictionLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
 
 	Blob<Dtype>* predictions = bottom[0];
 	Blob<Dtype>* masks = bottom[1];
-	
+	Blob<Dtype>* trimaps = NULL;
+  if (m_use_trimap == true)
+    trimaps = bottom[2];
+
 	int num = bottom[0]->shape(0);
 	Dtype lossPerAllBatch = 0;
+  Dtype norm_factor = m_predictionHeight*m_predictionWidth;
 
 	for (int i = 0; i < num; i++)
 	{
@@ -67,22 +84,33 @@ void AlphaPredictionLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
 			cv::resize(cvMaskCopy, cvMaskCopy, cv::Size(m_predictionHeight, m_predictionWidth), cv::INTER_NEAREST);
 				
     cvMaskCopy/=Dtype(255);
+    if (m_use_trimap == true)
+      norm_factor = 0;
 
+     
 		Dtype sumOfElementWiseLoss = 0;
-		for (int i=0;i<m_predictionHeight;i++)
+		for (int k=0;k<m_predictionHeight;k++)
     {
 			for (int j=0;j<m_predictionWidth;j++)
 			{
-				Dtype mask_ij = cvMaskCopy.at<Dtype>(i,j);
-				Dtype pred_ij = cvPredictionCopy.at<Dtype>(i,j);
-        Dtype square = (pred_ij - mask_ij)*(pred_ij - mask_ij);
-        //std::cout<<"square: "<<square<<'\n';  
+				Dtype mask_kj = cvMaskCopy.at<Dtype>(k,j);
+				Dtype pred_kj = cvPredictionCopy.at<Dtype>(k,j);
+        Dtype square = (pred_kj - mask_kj)*(pred_kj - mask_kj);
+        //std::cout<<"square: "<<square<<'\n';
+        if (m_use_trimap == true)
+        {
+          Dtype trimap_val = trimaps->data_at(i,3,k,j);
+          if (trimap_val != m_ignore_label)
+            continue;
+          else
+            norm_factor++;
+        }  
         sumOfElementWiseLoss += std::sqrt(square + m_epsilonSquare);
-
+        
 			}
     }
     
-		sumOfElementWiseLoss /= Dtype(m_predictionHeight*m_predictionWidth);
+		sumOfElementWiseLoss /= norm_factor;
 		lossPerAllBatch += sumOfElementWiseLoss;		
 	}
 
@@ -94,6 +122,9 @@ void AlphaPredictionLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
 {
 	Blob<Dtype>* predictions = bottom[0];
 	Blob<Dtype>* masks = bottom[1];
+  Blob<Dtype>* trimaps = NULL;
+  if (m_use_trimap == true)
+    trimaps = bottom[2];
 
 	CHECK_GT(predictions->shape(0), 0) << "Zero blobs.";
 	CHECK_EQ(predictions->shape(1), 1) << "Icorrect size of channels.";
@@ -105,7 +136,7 @@ void AlphaPredictionLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
 	int dim = predictions->shape(1)*predictions->shape(2)*predictions->shape(3);
 	CHECK_EQ(predictions->count(),dim*num);
 	int stride = predictions->shape(2);
-	
+	Dtype norm_factor = m_predictionHeight*m_predictionWidth;
 
 	for (int j = 0; j < num; j++)
 	{
@@ -128,8 +159,14 @@ void AlphaPredictionLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& t
 				LOG_IF(FATAL,index>=predictions->count())<<"index :"<<index<<" j: "<<j<<" dim: "<<dim<<" height :"<<height<<" stride: "<<stride<<" width :"<<width<<" count: "<<predictions->count();
 
         Dtype square = (pred - mask)*(pred - mask);
-        Dtype grad =  (pred - mask)/std::sqrt(square + m_epsilonSquare); 
-        predictions->mutable_cpu_diff()[index] = (Dtype(1)/Dtype(m_predictionHeight*m_predictionWidth))*grad;
+        Dtype grad =  (pred - mask)/std::sqrt(square + m_epsilonSquare);
+        predictions->mutable_cpu_diff()[index] = grad/norm_factor;
+        if (m_use_trimap == true)
+        {
+          Dtype trimap_val = trimaps->data_at(j, 3, height, width);
+          if (trimap_val != m_ignore_label)
+            predictions->mutable_cpu_diff()[index] = Dtype(0);
+        }
 			}
 		}
 	}

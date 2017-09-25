@@ -83,14 +83,15 @@ class bgs_test_train:
         else:
             self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
             
-        self.img_width = 224
-        self.img_height = 224
+        self.img_width = 128
+        self.img_height = 128
         self.list_ind = 0
         self.epoch_ind = 0
         self.iter_ind = 0
         self.snapshot = snapshot
         self.snapshot_diff = snapshot_diff
         self.use_data_aug = True
+        self.infer_only_trimap = True
         self.snapshot_path = snapshot_path
         self.train_loss = []
         self.test_loss = []
@@ -254,20 +255,31 @@ class bgs_test_train:
             self.test_loss.append(net.blobs['loss'].data.flatten()[0])
             if 'mask_accuracy' in net.blobs:
                 self.test_acc.append(net.blobs['mask_accuracy'].data.flatten()[0])
-            # not debbuged yet
             if is_save_fig == True:
                 fig,ax = plt.subplots(1)
                 ax.axis('off')
                 image_orig = cv2.imread(image)
                 image_orig = cv2.cvtColor(image_orig,cv2.COLOR_BGR2RGB).astype('float32')
                 mask = net.blobs['alpha_pred'].data
+                mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
+
                 if np.max(mask) == 255:
                     mask /= 255.0
-                mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
+
+                if self.infer_only_trimap == True:    
+                    trimap = trimap_r.reshape((trimap_r.shape[2],img_r.shape[3],1))
+                    mask[trimap == 255] = 1
+                    mask[trimap== 128 ] = 0
+                    trimap = cv2.resize(trimap, (image_orig.shape[1],image_orig.shape[0]))
                 mask_r = cv2.resize(mask, (image_orig.shape[1],image_orig.shape[0]))
                 mask_r_thresh = mask_r.copy()
-                zv = mask_r < 0.9
-                ov = mask_r >= 0.9
+                if self.infer_only_trimap == True:
+                    #ipdb.set_trace()
+		    zv = np.bitwise_and(mask_r < 0.9, trimap == 0)
+		    ov = np.bitwise_and(mask_r >= 0.9, trimap == 0)
+                else:
+		    zv = mask_r < 0.9
+		    ov = mask_r >= 0.9  
                 mask_r_thresh[zv] = 0
                 mask_r_thresh[ov] = 1
                 overlay = np.multiply(image_orig/np.max(image_orig),mask_r[:,:,np.newaxis])

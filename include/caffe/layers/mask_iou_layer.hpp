@@ -26,18 +26,16 @@ namespace caffe {
 		*     correct.  For example, if @f$ k = 5 @f$, a prediction is counted
 		*     correct if the correct label is among the top 5 predicted labels.
 		*/
-		explicit MaskIOULayer(const LayerParameter& param)
-			: Layer<Dtype>(param) 
-    {
-      m_thresh = param.threshold_param().threshold();
-    }
+		explicit MaskIOULayer(const LayerParameter& param);
+			
 		virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 			const vector<Blob<Dtype>*>& top);
 		virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
 			const vector<Blob<Dtype>*>& top);
 
 		virtual inline const char* type() const { return "MaskIOU"; }
-		virtual inline int ExactNumBottomBlobs() const { return 2; }
+		virtual inline int MinNumBottomBlobs() const { return 2; }
+    virtual inline int MaxNumBottomBlobs() const { return 3; }
 
 		// If there are two top blobs, then the second blob will contain
 		// accuracies per class.
@@ -58,6 +56,8 @@ namespace caffe {
 			}
 		}
     Dtype m_thresh;
+    bool m_use_trimap;
+    int m_ignore_label;
 	};
 
 }  // namespace caffe

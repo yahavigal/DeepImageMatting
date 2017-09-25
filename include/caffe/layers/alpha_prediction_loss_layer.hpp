@@ -15,13 +15,14 @@ namespace caffe {
 template <typename Dtype>
 class AlphaPredictionLossLayer : public LossLayer<Dtype> {
  public:
-  explicit AlphaPredictionLossLayer(const LayerParameter& param)
-      : LossLayer<Dtype>(param) {}
-
+  explicit AlphaPredictionLossLayer(const LayerParameter& param);
+      
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int MinNumBottomBlobs() const { return 2; }
+  virtual inline int MaxNumBottomBlobs() const { return 3; }
+  virtual inline int ExactNumBottomBlobs() const { return -1; }
   virtual inline const char* type() const { return "AlphaPredictionLoss"; }
  
  protected:
@@ -44,6 +45,8 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 	int m_maskWidth;
 
   Dtype m_epsilonSquare;
+  bool m_use_trimap;
+  int m_ignore_label;
 
 };
 
