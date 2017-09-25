@@ -41,6 +41,19 @@ void classname<Dtype>::funcname##_##gpu(const vector<Blob<Dtype>*>& top, \
 #include "caffe/util/cudnn.hpp"
 #endif
 
+#define NO_GPU_CODE_FORWARD(classname) \
+template <typename Dtype> \
+void classname<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom, \
+    const vector<Blob<Dtype>*>& top) { Forward_cpu(bottom,top); } \
+
+#define NO_GPU_CODE_BACKWARD(classname) \
+template <typename Dtype> \
+void classname<Dtype>::Backrward_gpu(const vector<Blob<Dtype>*>& top, \
+    const vector<bool>& propagate_down, \
+    const vector<Blob<Dtype>*>& bottom) { Backward_cpu(top,bottom,propagate_down); } \
+
+#define NO_GPU_CODE(classname) NO_GPU_CODE_FORWARD(classname) NO_GPU_CODE_BACKWARD(classname)
+
 //
 // CUDA macros
 //
