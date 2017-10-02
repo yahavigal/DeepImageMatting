@@ -1,80 +1,25 @@
 name: "Sharp Mask Net"
-#-------------------4 data layers for train and test-----------------------------------
-layer {
-  name: "data"
-  type: "Data"
-  top: "data"
-  top: "label_rgb" #not in use
-  include {
-    phase: TRAIN
-  }
-	transform_param {
-    mean_value: 104
-    mean_value: 117
-    mean_value: 123
- 	}
-  data_param {
-    source: "/media/or/Data/deepMask/lmdb/train_rgb_lmdb"
-    batch_size: 32
-    backend: LMDB
-  }
-}
-layer {
-  name: "data"
-  type: "Data"
-  top: "mask"
-  top: "label_mask"
-  include {
-    phase: TRAIN
-  }
-  data_param {
-    source: "/media/or/Data/deepMask/lmdb/train_mask_lmdb"
-    batch_size: 32
-    backend: LMDB
-  }
-}
 
-layer {
-  name: "data"
-  type: "Data"
-  top: "mask"
-  top: "label_mask"
-  include {
-    phase: TEST
-  }
-  data_param {
-    source: "/media/or/Data/deepMask/lmdb/test_mask_lmdb"
-    batch_size: 32
-    backend: LMDB
-  }
-}
-layer {
-  name: "data"
-  type: "Data"
-  top: "data"
-  top: "label_rgb" #not in use
-  include {
-    phase: TEST
-  }
-	transform_param {
-    mean_value: 104
-    mean_value: 117
-    mean_value: 123
- 	}
-  data_param {
-    source: "/media/or/Data/deepMask/lmdb/test_rgb_lmdb"
-    batch_size: 32
-    backend: LMDB
-  }
-}
+input: "data"
+input_dim: 1
+input_dim: 4
+input_dim: 224
+input_dim: 224
+
+input: "mask"
+input_dim: 1
+input_dim: 1
+input_dim: 224
+input_dim: 224
+
 #--------------------------common VGG 16 conv layers--------------------------------------
 layer {
   name: "conv1_1"
   type: "Convolution"
   bottom: "data"
   top: "conv1_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 64
     pad: 1
@@ -86,15 +31,15 @@ layer {
   type: "ReLU"
   bottom: "conv1_1"
   top: "conv1_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv1_2"
   type: "Convolution"
   bottom: "conv1_1"
   top: "conv1_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 64
     pad: 1
@@ -106,7 +51,7 @@ layer {
   type: "ReLU"
   bottom: "conv1_2"
   top: "conv1_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "pool1"
@@ -124,8 +69,8 @@ layer {
   type: "Convolution"
   bottom: "pool1"
   top: "conv2_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 128
     pad: 1
@@ -137,15 +82,15 @@ layer {
   type: "ReLU"
   bottom: "conv2_1"
   top: "conv2_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv2_2"
   type: "Convolution"
   bottom: "conv2_1"
   top: "conv2_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 128
     pad: 1
@@ -157,7 +102,7 @@ layer {
   type: "ReLU"
   bottom: "conv2_2"
   top: "conv2_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "pool2"
@@ -175,8 +120,8 @@ layer {
   type: "Convolution"
   bottom: "pool2"
   top: "conv3_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 256
     pad: 1
@@ -188,15 +133,15 @@ layer {
   type: "ReLU"
   bottom: "conv3_1"
   top: "conv3_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv3_2"
   type: "Convolution"
   bottom: "conv3_1"
   top: "conv3_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 256
     pad: 1
@@ -208,15 +153,15 @@ layer {
   type: "ReLU"
   bottom: "conv3_2"
   top: "conv3_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv3_3"
   type: "Convolution"
   bottom: "conv3_2"
   top: "conv3_3"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 256
     pad: 1
@@ -228,7 +173,7 @@ layer {
   type: "ReLU"
   bottom: "conv3_3"
   top: "conv3_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "pool3"
@@ -246,8 +191,8 @@ layer {
   type: "Convolution"
   bottom: "pool3"
   top: "conv4_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -259,15 +204,15 @@ layer {
   type: "ReLU"
   bottom: "conv4_1"
   top: "conv4_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv4_2"
   type: "Convolution"
   bottom: "conv4_1"
   top: "conv4_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -279,15 +224,15 @@ layer {
   type: "ReLU"
   bottom: "conv4_2"
   top: "conv4_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv4_3"
   type: "Convolution"
   bottom: "conv4_2"
   top: "conv4_3"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -299,7 +244,7 @@ layer {
   type: "ReLU"
   bottom: "conv4_3"
   top: "conv4_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "pool4"
@@ -317,8 +262,8 @@ layer {
   type: "Convolution"
   bottom: "pool4"
   top: "conv5_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -330,15 +275,15 @@ layer {
   type: "ReLU"
   bottom: "conv5_1"
   top: "conv5_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv5_2"
   type: "Convolution"
   bottom: "conv5_1"
   top: "conv5_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -350,15 +295,15 @@ layer {
   type: "ReLU"
   bottom: "conv5_2"
   top: "conv5_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv5_3"
   type: "Convolution"
   bottom: "conv5_2"
   top: "conv5_3"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
   convolution_param {
     num_output: 512
     pad: 1
@@ -370,7 +315,7 @@ layer {
   type: "ReLU"
   bottom: "conv5_3"
   top: "conv5_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 #-------- sharp mask specific conv to reduce the features----------
 #layer {
@@ -393,8 +338,8 @@ layer {
   type: "InnerProduct"
   bottom: "conv5_3"
   top: "fc_shared"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   inner_product_param {
     num_output: 512
   }
@@ -405,11 +350,11 @@ layer {
   type: "InnerProduct"
   bottom: "fc_shared"
   top: "fc_segm_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   inner_product_param {
     num_output: 3136
-		weight_filler { type: "xavier" }
+    weight_filler { type: "xavier" }
     bias_filler { type: "constant" value: 0 }
   }
 }
@@ -427,36 +372,6 @@ layer {
         dim: 14 
       }
     }
-}
-#------------------------scoring branch ---------------------------------
-layer {
-  name: "fc_score_2"
-  type: "InnerProduct"
-  bottom: "fc_shared"
-  top: "fc_score_2"
-	param { lr_mult: 1 decay_mult: 0 }
-	param { lr_mult: 2 decay_mult: 0 }
-  inner_product_param {
-    num_output: 1024
-  }
-}
-layer {
-  name: "relu_score_2"
-  type: "ReLU"
-  bottom: "fc_score_2"
-  top: "fc_score_2"
-  relu_param{ negative_slope: 0 }
-}
-layer {
-  name: "score"
-  type: "InnerProduct"
-  bottom: "fc_score_2"
-  top: "score"
-	param { lr_mult: 1 decay_mult: 0 }
-	param { lr_mult: 2 decay_mult: 0 }
-  inner_product_param {
-    num_output: 1
-  }
 }
 #------------------ refinement module 1-----------------------
 layer {
@@ -479,7 +394,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_1_1"
   top: "conv_rm_1_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv_rm_1_2"
@@ -501,7 +416,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_1_2"
   top: "conv_rm_1_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "concat_rm1"
@@ -533,7 +448,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_1_3"
   top: "conv_rm_1_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
 	name: "upsampling_rm_1"
@@ -571,7 +486,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_2_1"
   top: "conv_rm_2_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv_rm_2_2"
@@ -593,7 +508,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_2_2"
   top: "conv_rm_2_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "concat_rm_2"
@@ -625,7 +540,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_2_3"
   top: "conv_rm_2_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
 	name: "upsampling_rm_2"
@@ -663,7 +578,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_3_1"
   top: "conv_rm_3_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv_rm_3_2"
@@ -685,7 +600,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_3_2"
   top: "conv_rm_3_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "concat_rm_3"
@@ -717,7 +632,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_3_3"
   top: "conv_rm_3_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
 	name: "upsampling_rm_3"
@@ -755,7 +670,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_4_1"
   top: "conv_rm_4_1"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "conv_rm_4_2"
@@ -777,7 +692,7 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_4_2"
   top: "conv_rm_4_2"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
   name: "concat_rm_4"
@@ -809,13 +724,13 @@ layer {
   type: "ReLU"
   bottom: "conv_rm_4_3"
   top: "conv_rm_4_3"
-  relu_param{ negative_slope: 0 }
+  relu_param{ negative_slope: 0.2 }
 }
 layer {
 	name: "upsampling_rm_4"
 	type: "Deconvolution"
 	bottom: "conv_rm_4_3"
-	top: "up_rm_4"
+	top: "alpha_pred"
 	param { lr_mult: 0 decay_mult: 0 } 
 	convolution_param {
     kernel_size: 4
@@ -829,25 +744,16 @@ layer {
 #-----------------------------article-specific loss layer and accuray layers------------------------------------------------------
 layer {
   name: "loss"
-  type: "MaskLoss"
-  bottom: "up_rm_4"
+  type: "MaskSoftPlusLoss"
+  bottom: "alpha_pred"
   bottom: "mask"
-  bottom: "score"
-  bottom: "label_mask"
   top: "loss"
 }
 layer {
-  name: "maskAccuracy"
-  type: "MaskAccuracy"
-  bottom: "up_rm_4"
+  name: "mask_accuracy"
+  type: "MaskIOU"
+  bottom: "alpha_pred"
   bottom: "mask"
-  bottom: "label_mask"
-  top: "maskAccuracy"
-}
-layer {
-  name: "scoreAccuracy"
-  type: "ScoreAccuracy"
-  bottom: "score"
-  bottom: "label_mask"
-  top: "scoreAccuracy"
+  top: "mask_accuracy"
+  threshold_param { threshold: 0 }
 }
