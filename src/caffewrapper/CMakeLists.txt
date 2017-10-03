@@ -1,0 +1,29 @@
+# Project
+project(CaffeWrapper)
+
+file(GLOB_RECURSE PROJECT_SOURCES src/*.cpp src/*.h src/*.hpp)
+file(GLOB_RECURSE PROJECT_HEADERS include/*.h include/*.hpp)
+
+include_directories(
+	include
+    ${Caffe_INCLUDE_DIR}
+	${BOOST_INCLUDEDIR}
+)
+
+add_library(${PROJECT_NAME} SHARED
+    ${PROJECT_SOURCES}
+    ${PROJECT_HEADERS}
+    )
+
+target_link_libraries(${PROJECT_NAME} ${Caffe_LINK})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    DEBUG_POSTFIX ${Caffe_DEBUG_POSTFIX}
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+	
+install(FILES ${PROJECT_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/caffewrapper)
+install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

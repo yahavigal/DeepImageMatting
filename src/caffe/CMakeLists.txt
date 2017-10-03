@@ -107,7 +107,3 @@ if(MSVC AND NOT BUILD_SHARED_LIBS)
   install(FILES ${caffe_export_hdr} ${caffe_symbols_hdr} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/caffe)
 endif()
 
-file(WRITE ${PROJECT_BINARY_DIR}/__init__.py)
-list(APPEND proto_python ${PROJECT_BINARY_DIR}/__init__.py)
-install(PROGRAMS ${proto_python} DESTINATION python/caffe/proto)
-
