@@ -159,12 +159,13 @@ class bgs_test_train:
 
             trimap_r = trimap_r.reshape([1,self.img_height,self.img_width])
             mask_r = mask_r.reshape([1,self.img_height,self.img_width])
-            img_r = img_r.reshape([3,self.img_height,self.img_width])
+            img_r = img_r.transpose([2,0,1])
+
 
             return img_r,mask_r,trimap_r
         else:
             mask_r = mask_r.reshape([1,self.img_height,self.img_width])
-            img_r = img_r.reshape([3,self.img_height,self.img_width])
+            img_r = img_r.transpose([2,0,1])
             return img_r,mask_r
 
     def get_batch_data(self,batch_size = 32):
