@@ -46,7 +46,7 @@ namespace caffe
 			return CaffeStatus_BadInput;
 
 		float* input_data = input_layer->mutable_cpu_data();
-		input_data = input;
+		memcpy(input_data, input, input_size * sizeof(float));
 
 		m_net->Forward();
 
@@ -63,13 +63,7 @@ namespace caffe
 			return CaffeStatus_BadInput;
 
 		const float* output_data = output_layer->cpu_data();
-		float* output_ptr = output;
-		for (int i = 0; i < output_size; i++)
-		{
-			*output_ptr = *output_data;
-			output_data++;
-			output_ptr++;
-		}
+		memcpy(output, output_data, output_size * sizeof(float));
 
 		return CaffeStatus_Success;
 	}
