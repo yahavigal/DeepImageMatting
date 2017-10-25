@@ -5,27 +5,31 @@ Created on Sun Oct 22 14:33:43 2017
 @author: or
 """
 
-import caffe 
-import numpy as np 
+import caffe
+import numpy as np
 import argparse
 import os
+import ipdb
+types_to_prune = ["Convolution","InnerProduct"]
 
 def save_sparse_weights_mask(net, model,percent):
 
     net = caffe.Net(net, model, caffe.TEST)
     masks = {}
     for layer,blob in net.params.items():
+        if net.layer_dict[layer].type not in types_to_prune:
+            continue
         weights = blob[0].data
         pruning_percent = np.percentile(np.abs(weights),percent)
         masks[layer] = np.abs(weights) < pruning_percent
 
     path_to_save  = os.path.splitext(model)
-    path_to_save = path_to_save[0]+"_SDS_mask"+path_to_save[1]    
+    path_to_save = path_to_save[0]+"_DSD_mask"+path_to_save[1]
     np.save(path_to_save,masks)
 
 
 if __name__ == "__main__":
-    
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--net', type=str, required=True)

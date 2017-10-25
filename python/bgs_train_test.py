@@ -23,8 +23,8 @@ current_milli_time = lambda: int(round(time.time() * 1000))
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
-                 snapshot_path, batch_size=16, snapshot = 100, snapshot_diff = False,
-                 trimap_dir = None):
+                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
+                 trimap_dir = None, DSD_flag = False):
 
         self.gt_ext = "_silhuette"
         self.trimap_ext = "triMap_"
@@ -83,8 +83,16 @@ class bgs_test_train:
         else:
             self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
 
-        self.img_width = 224
-        self.img_height = 224
+        self.DSD_masks = None
+        self.DSD_flag = DSD_flag
+        if weights_path is not None and self.DSD_flag == True:
+            path_DSD_masks = os.path.splitext(weights_path)
+            path_DSD_masks = path_DSD_masks[0]+"_DSD_mask"+path_DSD_masks[1]+".npy"
+            self.DSD_masks = np.load(path_DSD_masks).item()
+
+
+        self.img_width =128
+        self.img_height = 128
         self.list_ind = 0
         self.epoch_ind = 0
         self.iter_ind = 0
@@ -161,7 +169,6 @@ class bgs_test_train:
             mask_r = mask_r.reshape([1,self.img_height,self.img_width])
             img_r = img_r.transpose([2,0,1])
 
-
             return img_r,mask_r,trimap_r
         else:
             mask_r = mask_r.reshape([1,self.img_height,self.img_width])
@@ -174,6 +181,7 @@ class bgs_test_train:
         while len(batch) < batch_size:
             if self.list_ind>= len(self.images_list_train):
                 print "starting from beginning of the list"
+                random.shuffle(self.images_list_train)
                 self.epoch_ind += 1
                 self.list_ind = 0
             if self.trimap_dir == None:
@@ -202,6 +210,14 @@ class bgs_test_train:
         net.blobs[net.inputs[0]].data[...]= images
         net.blobs[net.inputs[1]].data[...]= masks
         self.solver.step(1)
+
+        # dense sparse dense (DSD)
+        if self.DSD_flag == True and self.DSD_masks is not None:
+            for layer,blob in net.params.items():
+                if layer not in self.DSD_masks.keys():
+                    continue
+                blob[0].data[self.DSD_masks[layer]] = 0
+
         self.iter_ind += 1
         print self.iter_ind, " loss: " ,net.blobs['loss'].data
         self.train_loss.append(net.blobs['loss'].data.flatten()[0])
@@ -213,6 +229,7 @@ class bgs_test_train:
             print "snapshot iter {}".format(self.iter_ind)
             snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.iter_ind)+".caffemodel")
             self.solver.net.save(snapshot_file, self.snapshot_diff)
+
         return net.blobs['loss'].data
 
     def test(self, is_save_fig = True):
@@ -343,10 +360,10 @@ class bgs_test_train:
 
         plt.show()
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
-    trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,trimap_dir = trimap_dir)
+    trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,trimap_dir = trimap_dir,DSD_flag = DSD)
 
     while trainer.epoch_ind < epochs_num:
         trainer.train()
@@ -364,9 +381,10 @@ if __name__ == "__main__":
     parser.add_argument('--solver', type=str, required=True)
     parser.add_argument('--model', type=str, required=False, default = None)
     parser.add_argument('--epochs', type=int, required=False, default = 60)
+    parser.add_argument('--DSD', action = 'store_true')
     args = parser.parse_args()
 
-    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir)
+    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,args.DSD)
 
 
 
