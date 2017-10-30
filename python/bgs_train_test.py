@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import data_augmentation
 import time
 import platform
+from PIL import Image
 current_milli_time = lambda: int(round(time.time() * 1000))
 
 
@@ -100,6 +101,8 @@ class bgs_test_train:
         self.snapshot_diff = snapshot_diff
         self.use_data_aug = True
         self.infer_only_trimap = False
+        self.dump_bin = False
+        self.view_all = False
         self.snapshot_path = snapshot_path
         self.train_loss = []
         self.test_loss = []
@@ -260,6 +263,7 @@ class bgs_test_train:
 
             if trimap_r is not None:
                 img_r = np.concatenate((img_r,trimap_r),axis =0)
+            ls = img_r.flatten().tolist()
             img_r = img_r.reshape(1,*img_r.shape)
             mask_r = mask_r.reshape(1,*mask_r.shape)
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
@@ -278,6 +282,8 @@ class bgs_test_train:
                 ax.axis('off')
                 image_orig = cv2.imread(image)
                 image_orig = cv2.cvtColor(image_orig,cv2.COLOR_BGR2RGB).astype('float32')
+                gt_mask = mask_r.reshape((img_r.shape[2],img_r.shape[3]))
+                gt_mask = cv2.resize(gt_mask, (image_orig.shape[1],image_orig.shape[0]),interpolation = cv2.INTER_NEAREST)
                 mask = net.blobs['alpha_pred'].data
                 mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
 
@@ -292,12 +298,11 @@ class bgs_test_train:
                 mask_r = cv2.resize(mask, (image_orig.shape[1],image_orig.shape[0]))
                 mask_r_thresh = mask_r.copy()
                 if self.infer_only_trimap == True:
-                    #ipdb.set_trace()
-		    zv = np.bitwise_and(mask_r < 0.9, trimap == 0)
-		    ov = np.bitwise_and(mask_r >= 0.9, trimap == 0)
+		    zv = np.bitwise_and(mask_r < 0.5, trimap == 0)
+		    ov = np.bitwise_and(mask_r >= 0.5, trimap == 0)
                 else:
-		    zv = mask_r < 0.9
-		    ov = mask_r >= 0.9
+		    zv = mask_r < 0.5
+		    ov = mask_r >= 0.5
                 mask_r_thresh[zv] = 0
                 mask_r_thresh[ov] = 1
                 bg = cv2.imread('bg.jpg')
@@ -313,15 +318,70 @@ class bgs_test_train:
                 ind1 = split.index([x for x in split if x.startswith("w")][0])
 
                 ax.imshow(mattImage)
-                fig_path = split[ind1]+"_"+split[ind1 +1]+ "_"+split[ind1+2].split('.')[0] +"_iou: {}.fig.jpg".format(self.test_acc[-1])
+                fig_path = split[ind1]+"_"+split[ind1 +1]+ "_"+split[ind1+2].split('.')[0] +"_iou_{}.fig.jpg".format(int(100*self.test_acc[-1]))
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
 
                 ax.imshow(overlay_thresh)
-                fig_path = split[ind1]+"_"+split[ind1 +1]+"_"+split[ind1+2].split('.')[0]+"_iou: {}.threshold_fig.jpg".format(self.test_acc[-1])
+                fig_path = split[ind1]+"_"+split[ind1 +1]+"_"+split[ind1+2].split('.')[0]+"_iou_{}.threshold.fig.jpg".format(int(100*self.test_acc[-1]))
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
                 plt.close(fig)
+
+                if self.dump_bin ==True:
+                    bin_path = fig_path.replace(".fig.jpg",".input.bin")
+                    output_bin_path = fig_path.replace(".fig.jpg",".output.bin")
+                    dump = open(bin_path,'w')
+                    out_dump = open(output_bin_path,'w')
+                    for item in ls:
+                        dump.write(str(int(item))+'\n')
+                    dump.close()
+                    for item in mask.flatten().tolist():
+                        out_dump.write(str(int(item*255))+'\n')
+                    out_dump.close()
+
+                if self.view_all == True:
+                    fig = plt.figure(figsize = (8,8))
+                    fig.canvas.set_window_title("bla bla")
+                    plt.subplot(2,2,1)
+                    plt.axis('off')
+                    plt.title("trimap input")
+                    trimap = trimap_r.reshape((trimap_r.shape[2],img_r.shape[3],1))
+                    trimap = np.repeat(trimap,3,axis = 2)
+                    trimap = cv2.resize(trimap,(image_orig.shape[1],image_orig.shape[0]))
+                    trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
+                    image_trimap = Image.fromarray(trimap)
+                    image_Image = Image.fromarray(image_orig.astype(np.uint8))
+                    trimap_blend = Image.blend(image_trimap,image_Image,0.8)
+                    plt.imshow(trimap_blend)
+
+                    plt.subplot(2,2,2)
+                    plt.axis('off')
+                    plt.title("GT input")
+                    gt_input = np.array(Image.fromarray(gt_mask).convert('RGB'))
+                    gt_input[np.any(gt_input == [255,255,255],axis = -1)] = (255,0,0)
+                    gt_input = Image.fromarray(gt_input)
+                    gt_blend = Image.blend(gt_input,image_Image,0.8)
+                    plt.imshow(gt_blend)
+
+                    plt.subplot(2,2,3)
+                    plt.axis('off')
+                    plt.title("algo results")
+                    mask_r[mask_r > 0.5] = 1
+                    algo_res = np.array(Image.fromarray(mask_r).convert('RGB'))
+                    algo_res[np.any(algo_res == [1,1,1],axis = -1)] = (255,0,0)
+                    algo_res = Image.fromarray(algo_res)
+                    algo_res = Image.blend(algo_res,image_Image,0.8)
+                    plt.imshow(algo_res)
+                    fig_path = split[ind1]+"_"+split[ind1 +1]+"_"+split[ind1+2].split('.')[0]+"_iou_{}.all.fig.jpg".format(int(100*self.test_acc[-1]))
+                    fig_path = os.path.join(self.results_path,fig_path)
+                    plt.savefig(fig_path)
+                    plt.close(fig)
+
+
+
+
+
         print "{} average loss on test: {} average accuracy on test {}".format(self.exp_name,
                                                                         np.average(self.test_loss),
                                                                         np.average(self.test_acc))
