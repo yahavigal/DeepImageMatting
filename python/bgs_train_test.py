@@ -6,8 +6,8 @@ Created on Mon Aug 14 18:10:32 2017
 """
 
 import caffe
-caffe.set_mode_gpu()
-caffe.set_device(0)
+caffe.set_mode_cpu()
+#caffe.set_device(0)
 import numpy as np
 import os
 import cv2
@@ -19,13 +19,14 @@ import data_augmentation
 import time
 import platform
 from PIL import Image
+import sys
 current_milli_time = lambda: int(round(time.time() * 1000))
 
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
-                 trimap_dir = None, DSD_flag = False):
+                 trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True):
 
         self.gt_ext = "_silhuette"
         self.trimap_ext = "triMap_"
@@ -65,7 +66,7 @@ class bgs_test_train:
 
         self.trimap_dir =  trimap_dir
 
-        if self.images_list_train is not None:
+        if self.images_list_train is not None and shuffle_data == True:
             random.shuffle(self.images_list_train)
 
         if solver_path.find('solver') != -1:
@@ -99,15 +100,26 @@ class bgs_test_train:
         self.iter_ind = 0
         self.snapshot = snapshot
         self.snapshot_diff = snapshot_diff
+        self.shuffle = shuffle_data
         self.use_data_aug = True
         self.infer_only_trimap = False
         self.dump_bin = False
         self.view_all = False
+        self.save_test_by_loss = save_loss_per_image
+        self.use_tf_inference = True
         self.snapshot_path = snapshot_path
         self.train_loss = []
         self.test_loss = []
         self.train_acc = []
         self.test_acc = []
+
+        if self.use_tf_inference == True:
+            sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
+            import convert_to_tf
+            convert_to_tf.load_caffe_weights(solver_path,weights_path)
+            self.input_tensor = convert_to_tf.get_input_tensor()
+            self.tf_graph = getattr(convert_to_tf,solver_path.split(os.sep)[-3])(self.input_tensor)
+            convert_to_tf.init_graph()
 
 
     def get_tuple_data_point(self, image_path):
@@ -184,7 +196,8 @@ class bgs_test_train:
         while len(batch) < batch_size:
             if self.list_ind>= len(self.images_list_train):
                 print "starting from beginning of the list"
-                random.shuffle(self.images_list_train)
+                if self.shuffle == True:
+                    random.shuffle(self.images_list_train)
                 self.epoch_ind += 1
                 self.list_ind = 0
             if self.trimap_dir == None:
@@ -237,7 +250,10 @@ class bgs_test_train:
 
     def test(self, is_save_fig = True):
 
+
+        diff_caffe_tf = []
         times = []
+        loss_per_image = {}
         #no data augmentation in test
         trimap_r = None
         self.use_data_aug = False
@@ -270,11 +286,20 @@ class bgs_test_train:
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
             net.blobs[net.inputs[0]].data[...]= img_r
             net.blobs[net.inputs[1]].data[...]= mask_r
+
             start = current_milli_time()
             net.forward()
             times.append(current_milli_time() - start)
 
+            if self.use_tf_inference ==True:
+                from convert_to_tf import *
+                tf_res = run_inference(self.tf_graph,self.input_tensor,img_r)
+
+
             self.test_loss.append(net.blobs['loss'].data.flatten()[0])
+            if self.save_test_by_loss == True:
+                loss_per_image[self.test_loss[-1]] = image
+
             if 'mask_accuracy' in net.blobs:
                 self.test_acc.append(net.blobs['mask_accuracy'].data.flatten()[0])
             if is_save_fig == True:
@@ -285,6 +310,8 @@ class bgs_test_train:
                 gt_mask = mask_r.reshape((img_r.shape[2],img_r.shape[3]))
                 gt_mask = cv2.resize(gt_mask, (image_orig.shape[1],image_orig.shape[0]),interpolation = cv2.INTER_NEAREST)
                 mask = net.blobs['alpha_pred'].data
+                if self.use_tf_inference ==True:
+                    diff_caffe_tf.append(np.mean(np.bitwise_and(mask <0.5,tf_res>=0.5)))
                 mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
 
                 if np.max(mask) == 255:
@@ -298,11 +325,11 @@ class bgs_test_train:
                 mask_r = cv2.resize(mask, (image_orig.shape[1],image_orig.shape[0]))
                 mask_r_thresh = mask_r.copy()
                 if self.infer_only_trimap == True:
-		    zv = np.bitwise_and(mask_r < 0.5, trimap == 0)
-		    ov = np.bitwise_and(mask_r >= 0.5, trimap == 0)
+                    zv = np.bitwise_and(mask_r < 0.5, trimap == 0)
+                    ov = np.bitwise_and(mask_r >= 0.5, trimap == 0)
                 else:
-		    zv = mask_r < 0.5
-		    ov = mask_r >= 0.5
+                    zv = mask_r < 0.5
+                    ov = mask_r >= 0.5
                 mask_r_thresh[zv] = 0
                 mask_r_thresh[ov] = 1
                 bg = cv2.imread('bg.jpg')
@@ -385,8 +412,14 @@ class bgs_test_train:
         print "{} average loss on test: {} average accuracy on test {}".format(self.exp_name,
                                                                         np.average(self.test_loss),
                                                                         np.average(self.test_acc))
-        print "{} average time for inference: {}".format(self.exp_name,
-                                                         np.average(times))
+        print "{} average time for inference: {}".format(self.exp_name,np.average(times))
+
+        if self.use_tf_inference ==True:
+            plt.hist(diff_caffe_tf, bins=100)
+            plt.show()
+
+        if self.save_test_by_loss == True:
+            return loss_per_image
         return np.average(self.test_loss), np.average(self.test_acc)
 
 
@@ -420,10 +453,11 @@ class bgs_test_train:
 
         plt.show()
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
-    trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,trimap_dir = trimap_dir,DSD_flag = DSD)
+    trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
+                             trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle)
 
     while trainer.epoch_ind < epochs_num:
         trainer.train()
@@ -442,9 +476,11 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, required=False, default = None)
     parser.add_argument('--epochs', type=int, required=False, default = 60)
     parser.add_argument('--DSD', action = 'store_true')
+    parser.add_argument('--no_shuffle', action='store_false')
     args = parser.parse_args()
 
-    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,args.DSD)
+    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
+                 shuffle=args.no_shuffle)
 
 
 

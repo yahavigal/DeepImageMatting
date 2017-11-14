@@ -2,7 +2,8 @@ import caffe
 import tensorflow as tf
 import argparse
 import ipdb
-
+import os
+import numpy as np
 caffe_weights = {}
 
 
@@ -15,7 +16,7 @@ def conv(name, input, strides, padding, add_bias, apply_relu, atrous_rate=None):
         # Load kernel weights and apply convolution
         w_kernel = caffe_weights[name][0].data
         w_kernel = w_kernel.transpose([2,3,1,0])
-        w_kernel = tf.Variable(initial_value=w_kernel, trainable=False)
+        w_kernel = tf.Variable(initial_value=w_kernel, trainable=False,dtype=np.float32)
 
         if not atrous_rate:
             conv_out = tf.nn.conv2d(input, w_kernel, strides, padding)
@@ -24,7 +25,7 @@ def conv(name, input, strides, padding, add_bias, apply_relu, atrous_rate=None):
         if add_bias:
             # Load bias values and add them to conv output
             w_bias = caffe_weights[name][1].data
-            w_bias = tf.Variable(initial_value=w_bias, trainable=False)
+            w_bias = tf.Variable(initial_value=w_bias, trainable=False,dtype=np.float32)
             conv_out = tf.nn.bias_add(conv_out, w_bias)
 
         if apply_relu:
@@ -42,18 +43,24 @@ def deconv(name, input, output_shape, padding, add_bias, apply_relu, atrous_rate
 
         # Load kernel weights and apply convolution
         w_kernel = caffe_weights[name][0].data
+        #ipdb.set_trace()
         w_kernel = w_kernel.transpose([2, 3, 1, 0])
-        w_kernel = tf.Variable(initial_value=w_kernel, trainable=False)
+        w_kernel = tf.Variable(initial_value=w_kernel, trainable=False,dtype=np.float32)
+        #w_kernel = tf.reshape(w_kernel,shape=(2,32))
+        #input_r= tf.reshape(input,shape=(2,4096))
+        #deconv_out = tf.matmul(w_kernel,input_r, transpose_a=True)
+
+
 
         if not atrous_rate:
+            #ipdb.set_trace()
             deconv_out = tf.nn.conv2d_transpose(input, w_kernel,strides=[1,2,2,1],output_shape= output_shape, padding=padding)
         else:
-            deconv_out = tf.nn.atrous_conv2d_transpose(input, w_kernel, output_shape,atrous_rate, padding)
+            deconv_out = tf.nn.atrous_conv2d_transpose(input, w_kernel, output_shape, atrous_rate, padding)
         if add_bias:
             # Load bias values and add them to conv output
             w_bias = caffe_weights[name][1].data
-            w_bias = w_bias.transpose([2, 3, 1, 0])
-            w_bias = tf.Variable(initial_value=w_bias, trainable=False)
+            w_bias = tf.Variable(initial_value=w_bias, trainable=False,dtype=np.float32)
             deconv_out = tf.nn.bias_add(deconv_out, w_bias)
 
         if apply_relu:
@@ -72,13 +79,13 @@ def batch_normalization(name,input):
             scale_factor = 1.0/scale_factor
         w_mean = caffe_weights[name][0].data*scale_factor
         w_variance = caffe_weights[name][1].data * scale_factor
-        w_mean = tf.Variable(initial_value=w_mean, trainable=False)
-        w_variance = tf.Variable(initial_value=w_variance, trainable=False)
-        return tf.nn.batch_normalization(input,w_mean,w_variance,0,1,0, name=name)
+        w_mean = tf.Variable(initial_value=w_mean, trainable=False,dtype=np.float32)
+        w_variance = tf.Variable(initial_value=w_variance, trainable=False,dtype=np.float32)
+        return tf.nn.batch_normalization(input,w_mean,w_variance,0,1,variance_epsilon=1e-5, name=name)
 
 
 
-def fast_portrait_matting(input_tensor):
+def fastPortraitMatting(input_tensor):
 
     concat_axis = 3
 
@@ -113,14 +120,14 @@ def fast_portrait_matting(input_tensor):
 
     bnorm_1 = tf.nn.relu(bnorm_1,name="relu_feathering_1")
 
-    conv_feathering_2 = conv("conv_feathering_2", bnorm_1, [1, 1, 1, 1], padding="SAME",
+    conv_feathering_2 = conv("conv_feathering_2", bnorm_1,[1, 1, 1, 1], padding="SAME",
                              add_bias=True,apply_relu=False)
 
-    a,b,c = tf.split(conv_feathering_2,num_or_size_splits=3,axis=concat_axis,name="slicer_2")
+    a,b,c= tf.split(conv_feathering_2,num_or_size_splits=3,axis=concat_axis,name="slicer_2")
     a_mult_bg = tf.multiply(a,background,name="a_mult_bg")
     b_mult_fg = tf.multiply(b, foreground, name="b_mult_fg")
     alpha_pred =  tf.add_n([a_mult_bg, b_mult_fg, c], name="guided_filter")
-    alpha_pred =  tf.nn.sigmoid(alpha_pred, name="sigmoid")
+    alpha_pred =  tf.nn.sigmoid(alpha_pred, name="alpha_pred")
 
     return  alpha_pred
 
@@ -129,10 +136,22 @@ def load_caffe_weights(net,model):
     global caffe_weights
     caffe_weights = net.params
 
+def init_graph():
+    init_all_op = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init_all_op)
 
 def get_input_tensor():
-    return tf.placeholder(dtype=tf.float32,shape=(1,128,128,4),name="input_tensor")
+    return tf.placeholder(dtype=np.float32,shape=(1,128,128,4),name="input_tensor")
 
+
+def run_inference(graph,input_tensor,image):
+    data_tf_fromat = image.transpose([0, 2, 3, 1])
+    init_all_op = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init_all_op)
+        pred = sess.run(graph,feed_dict={input_tensor:data_tf_fromat})
+        return pred.transpose([0,3,1,2])
 
 
 
@@ -155,7 +174,7 @@ if __name__ == "__main__":
     with tf.Session() as sess:
         sess.run(init_all_op)
         saver = tf.train.Saver()
-        saver.export_meta_graph("fastPortraitMatting.meta")
+        saver.save(sess, "fastPortraitMatting")
 
 
 
