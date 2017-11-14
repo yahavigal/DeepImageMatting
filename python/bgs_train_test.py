@@ -106,7 +106,7 @@ class bgs_test_train:
         self.dump_bin = False
         self.view_all = False
         self.save_test_by_loss = save_loss_per_image
-        self.use_tf_inference = True
+        self.use_tf_inference = False
         self.snapshot_path = snapshot_path
         self.train_loss = []
         self.test_loss = []
