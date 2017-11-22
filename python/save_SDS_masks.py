@@ -22,7 +22,6 @@ def save_sparse_weights_mask(net, model, percent, random, channel):
 
         weights = blob[0].data
         if random == True:
-            ipdb.set_trace()
             if channel ==True:
                 masks[layer] = np.ones(weights.shape, dtype=bool)
                 channels_to_prune =  np.random.choice([True, False], size=(weights.shape[0],), p=[1 - percent / 100.0, percent / 100.0])
@@ -31,11 +30,9 @@ def save_sparse_weights_mask(net, model, percent, random, channel):
                         masks[layer][i][...] = False
 
             else:
-                ipdb.set_trace()
                 masks[layer] = np.random.choice([True, False], size=weights.shape, p=[1-percent/100.0, percent/100.0])
         else:
             if channel == True:
-                ipdb.set_trace()
                 pruning_percent = np.percentile(np.mean(np.abs(weights),axis = (1,2,3)),percent)
                 masks[layer] = np.ones(weights.shape, dtype=bool)
                 for i,single_channel in enumerate(weights):
