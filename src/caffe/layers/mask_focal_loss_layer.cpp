@@ -156,8 +156,16 @@ void MaskFocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,con
                     func_CE = mask*std::log(pred) + (Dtype(1) - mask)*m_low_loss;
                 else
                     func_CE = mask*std::log(pred) + (Dtype(1) - mask)*std::log(Dtype(1) - pred);
+                func_CE = -func_CE;
+
                 
                 Dtype grad = grad_focal*func_CE + grad_CE*func_focal;
+                //if (std::signbit(grad_CE) != std::signbit(grad))
+                //{
+                //    std::cout<<"mask: "<<mask<<" pred: "<<pred;
+                //    std::cout<<" grad_focal: "<<grad_focal<<" func_CE: "<<func_CE<<" grad_CE: "<<grad_CE<<" func_focal: "<<func_focal;
+                //    std::cout<<" grad: "<<grad<<std::endl;
+                //}
 
                 predictions->mutable_cpu_diff()[index] = (Dtype(1)/Dtype(m_predictionHeight*m_predictionWidth))*grad;
             }
