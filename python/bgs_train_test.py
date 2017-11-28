@@ -19,6 +19,17 @@ import time
 import platform
 from PIL import Image
 import sys
+import re
+
+def find_data_root_ind(image,trimap_root):
+    ind = 0
+    image_split = image.split(os.sep)
+    trimap_split = trimap_root.split(os.sep)
+    while image_split[ind] == trimap_split[ind]:
+        ind +=1
+    return ind +1
+
+
 current_milli_time = lambda: int(round(time.time() * 1000))
 
 
@@ -28,14 +39,19 @@ class bgs_test_train:
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True):
 
         self.gt_ext = "_silhuette"
-        self.trimap_ext = "triMap_"
+        self.trimap_ext = None
+        if trimap_dir is not None:
+            if "triMap_" in trimap_dir:
+                self.trimap_ext = "triMap_"
+            else:
+                self.trimap_ext = "_depth"
         self.adverserial_ext = "_adv"
         self.use_adv_data_train = False
         self.trimap_dir = trimap_dir
         self.batch_size = batch_size
         self.exp_name = platform.node() + " " + solver_path.split(os.sep)[-3]
         if trimap_dir is not None:
-            self.exp_name +=" trimap"
+            self.exp_name += self.trimap_ext
 
 
         if os.path.isdir(images_dir_train):
@@ -116,9 +132,8 @@ class bgs_test_train:
             sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
             import convert_to_tf
             convert_to_tf.load_caffe_weights(solver_path,weights_path)
-            self.input_tensor = convert_to_tf.get_input_tensor()
-            self.tf_graph = getattr(convert_to_tf,solver_path.split(os.sep)[-3])(self.input_tensor)
-            convert_to_tf.init_graph()
+            self.tf_trainer =  convert_to_tf.TF_trainer()
+
 
 
     def get_tuple_data_point(self, image_path):
@@ -155,14 +170,15 @@ class bgs_test_train:
         mask = cv2.imread(gt_path,0)
         mask_r = cv2.resize(mask, (self.img_width,self.img_height),interpolation = cv2.INTER_NEAREST)
 
+        ind = find_data_root_ind(image_path,self.trimap_dir)
+        split = image_path.split(os.sep)[ind:]
+        split = os.sep.join(split)
+        frame_num = re.findall(r'\d+', split)[-1]
+        split = os.path.split(split)
 
-        split = image_path.split('/')
-        ind1 = split.index([x for x in split if x.startswith("w")][0])
-        frame_num = split[ind1+2].split('_')[0]
         if self.trimap_dir != None:
             trimap_path = os.path.join(self.trimap_dir,
-                                       split[ind1],split[ind1+1],
-                                       self.trimap_ext+frame_num+".png")
+                                       split[0],frame_num+self.trimap_ext+".png")
 
             if not os.path.isfile(trimap_path):
                 return [None, None, None]
@@ -253,6 +269,14 @@ class bgs_test_train:
         diff_caffe_tf = []
         times = []
         loss_per_image = {}
+        avg_iou_tf =[]
+        if self.use_tf_inference == True and self.images_list_train is not None:
+            for i in xrange(5000):
+                x,y = self.get_batch_data(1)
+                _, loss, _  = self.tf_trainer.run_fine_tune_to_deconv(x,y)
+                #print "loss for fine tune is: {} IOU is: {}".format(loss,iou)
+            self.tf_trainer.save()
+
         #no data augmentation in test
         trimap_r = None
         self.use_data_aug = False
@@ -291,8 +315,8 @@ class bgs_test_train:
             times.append(current_milli_time() - start)
 
             if self.use_tf_inference ==True:
-                from convert_to_tf import *
-                tf_res = run_inference(self.tf_graph,self.input_tensor,img_r)
+                tf_res,iou = self.tf_trainer.run_inference(img_r,mask_r)
+                avg_iou_tf.append(iou)
 
 
             self.test_loss.append(net.blobs['loss'].data.flatten()[0])
@@ -310,7 +334,7 @@ class bgs_test_train:
                 gt_mask = cv2.resize(gt_mask, (image_orig.shape[1],image_orig.shape[0]),interpolation = cv2.INTER_NEAREST)
                 mask = net.blobs['alpha_pred'].data
                 if self.use_tf_inference ==True:
-                    diff_caffe_tf.append(np.mean(np.bitwise_and(mask <0.5,tf_res>=0.5)))
+                    diff_caffe_tf.append(np.mean( np.bitwise_or(np.bitwise_and(mask >=0.5,tf_res<0.5),np.bitwise_and(mask <0.5,tf_res>=0.5))))
                 mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
 
                 if np.max(mask) == 255:
@@ -340,16 +364,15 @@ class bgs_test_train:
                 mattImage = overlay + bg
                 overlay_thresh = np.multiply(image_orig/np.max(image_orig),
                                              mask_r_thresh[:,:,np.newaxis])
-                split = image.split('/')
-                ind1 = split.index([x for x in split if x.startswith("w")][0])
+                split = os.path.splitext(image.replace(os.sep,"_"))[0]
 
                 ax.imshow(mattImage)
-                fig_path = split[ind1]+"_"+split[ind1 +1]+ "_"+split[ind1+2].split('.')[0] +"_iou_{}.fig.jpg".format(int(100*self.test_acc[-1]))
+                fig_path = split+"_iou_{}.fig.jpg".format(int(100*self.test_acc[-1]))
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
 
                 ax.imshow(overlay_thresh)
-                fig_path = split[ind1]+"_"+split[ind1 +1]+"_"+split[ind1+2].split('.')[0]+"_iou_{}.threshold.fig.jpg".format(int(100*self.test_acc[-1]))
+                fig_path = split +"_iou_{}.threshold.fig.jpg".format(int(100*self.test_acc[-1]))
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
                 plt.close(fig)
@@ -399,7 +422,7 @@ class bgs_test_train:
                     algo_res = Image.fromarray(algo_res)
                     algo_res = Image.blend(algo_res,image_Image,0.8)
                     plt.imshow(algo_res)
-                    fig_path = split[ind1]+"_"+split[ind1 +1]+"_"+split[ind1+2].split('.')[0]+"_iou_{}.all.fig.jpg".format(int(100*self.test_acc[-1]))
+                    fig_path = split +"_iou_{}.all.fig.jpg".format(int(100*self.test_acc[-1]))
                     fig_path = os.path.join(self.results_path,fig_path)
                     plt.savefig(fig_path)
                     plt.close(fig)
@@ -411,9 +434,11 @@ class bgs_test_train:
         print "{} average loss on test: {} average accuracy on test {}".format(self.exp_name,
                                                                         np.average(self.test_loss),
                                                                         np.average(self.test_acc))
+        
         print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
         if self.use_tf_inference ==True:
+            print "average accuracy on test in TF {}".format(np.average(avg_iou_tf))
             plt.hist(diff_caffe_tf, bins=100)
             plt.show()
 

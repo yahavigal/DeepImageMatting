@@ -18,14 +18,14 @@ import matplotlib.pyplot as plt
 
 gt_ext = "_silhuette"
 trimap_ext = "triMap_" 
-img_width = 224
-img_height = 224
+img_width = 128
+img_height = 128
 erosion_dilataion_kernel = np.ones((25,25),np.uint8)
 
 def get_order(num):
     n = num
     i = 0
-    while np.abs(n) < 0.01:
+    while np.abs(n) < 0.0001:
         n *= 10
         i += 1
     return i
@@ -47,7 +47,7 @@ def advesarial_data_augmentation(proto, model, inputs_data,  output_folder,
         images = open(inputs_data).readlines()
         images = [x[0:-1] for x in images if x.endswith('\n')]
         images_list = [x for x in images 
-                             if x.endswith(".png") and x.find(gt_ext) == -1]
+                             if x.endswith(".png") and x.find(gt_ext) == -1 and x.find("_adv") == -1]
     else:
         raise Exception("invalid inputs format")
     
@@ -65,9 +65,10 @@ def advesarial_data_augmentation(proto, model, inputs_data,  output_folder,
         path = os.path.splitext(image_path)
         gt_path = path[0] + gt_ext + path[1]
         if not os.path.isfile(gt_path):
-           raise Exception("missing ground truth per image {}".format(image_path))
+           print "missing ground truth per image {}".format(image_path)
+           continue
         
-        mask = cv2.imread(gt_path,cv2.CV_LOAD_IMAGE_GRAYSCALE)
+        mask = cv2.imread(gt_path,0)
         mask_r = cv2.resize(mask, (img_width,img_height),interpolation = cv2.INTER_NEAREST) 
        
         split = image_path.split(os.sep)
@@ -82,7 +83,7 @@ def advesarial_data_augmentation(proto, model, inputs_data,  output_folder,
             if trimap_data is not None and not os.path.isfile(trimap_path):
                 continue
                 
-            trimap = cv2.imread(trimap_path,cv2.CV_LOAD_IMAGE_GRAYSCALE)
+            trimap = cv2.imread(trimap_path,0)
             trimap_r = cv2.resize(trimap, (img_width,img_height),interpolation = cv2.INTER_NEAREST)
         
         if np.random.uniform() > 0.5:
@@ -90,7 +91,8 @@ def advesarial_data_augmentation(proto, model, inputs_data,  output_folder,
         else:
             mask_r = cv2.dilate(mask_r, erosion_dilataion_kernel, iterations = 1)
         
-        img_r = img_r1.reshape([1,3,img_height,img_width])
+        img_r = img_r1.transpose([2,0,1])
+        img_r = img_r1.reshape(1,img_r.shape[0],img_r.shape[1],img_r.shape[2])
         
         mask_r = mask_r.reshape([1,1,img_height,img_width])
         
@@ -108,29 +110,26 @@ def advesarial_data_augmentation(proto, model, inputs_data,  output_folder,
         net.backward(diffs=[net.inputs[0]])
         
         grad_wrt_input = net.blobs[net.inputs[0]].diff[0,:3,:]
-        
         if np.any(grad_wrt_input) == False:
             continue
         
         grad_wrt_input = grad_wrt_input.reshape(*img_r1.shape)
         order = get_order(np.mean(grad_wrt_input))
-        laying_rate = 2*(10**order)
-        img_r1 += laying_rate*grad_wrt_input
-        img_r1 += np.array([104,117,123],dtype=np.float32)
-        img_r1 = np.clip(img_r1, 0, 255)
-     
-        img_r1 = cv2.cvtColor(img_r1,cv2.COLOR_RGB2BGR).astype('uint8')
-        img_r1 = cv2.resize(img_r1, (img.shape[1],img.shape[0])) 
-        #need to add save image
-        
-        if np.any(img_r1 != img_orig):
-                 
+        laying_rate = 10**order
+        img_new = img_r1+laying_rate*grad_wrt_input
+        img_new += np.array([104,117,123],dtype=np.float32)
+        img_new = np.clip(img_new, 0, 255)
+        if np.any(img_r1 != img_new):
+            img_new = cv2.cvtColor(img_new,cv2.COLOR_RGB2BGR).astype('uint8')
+            img_new = cv2.resize(img_new, (img.shape[1],img.shape[0]))
+            #need to add save image
+
             path_to_save = '_'.join([split[ind1],split[ind1+1],frame_num])+"_adv.png"
             path_to_save_orig = '_'.join([split[ind1],split[ind1+1],frame_num])+"_orig.png"
             path_to_save = os.path.join(output_folder,path_to_save)
             path_to_save_orig = os.path.join(output_folder,path_to_save_orig)
-            cv2.imwrite(path[0]+ "_adv" +path[1],img_r1)
-            cv2.imwrite(path_to_save, img_r1)
+            cv2.imwrite(path[0]+ "_adv" +path[1],img_new)
+            cv2.imwrite(path_to_save, img_new)
             cv2.imwrite(path_to_save_orig, img_orig)
           
          
