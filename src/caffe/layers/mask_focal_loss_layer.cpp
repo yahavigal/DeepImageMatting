@@ -9,6 +9,18 @@
 namespace caffe {
 
 template <typename Dtype>
+MaskFocalLossLayer<Dtype>::MaskFocalLossLayer(const LayerParameter& param):LossLayer<Dtype>(param)
+{
+    if (param.has_loss_param())
+    {
+        m_is_segmentation = param.loss_param().is_segmentation();
+    }
+    else 
+    {
+        m_is_segmentation = false;
+    }
+}
+template <typename Dtype>
 void MaskFocalLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
     LossLayer<Dtype>::LayerSetUp(bottom, top);
@@ -70,8 +82,11 @@ void MaskFocalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,c
         cv::resize(cvMaskCopy, cvMaskCopy, cv::Size(m_predictionHeight, m_predictionWidth), cv::INTER_NEAREST);
 
         cvMaskCopy/=Dtype(255);
-        cvMaskCopy.setTo(0,cvMaskCopy<Dtype(0.5));
-        cvMaskCopy.setTo(1,cvMaskCopy>=Dtype(0.5));
+        if(m_is_segmentation)
+        {
+            cvMaskCopy.setTo(0,cvMaskCopy<Dtype(0.5));
+            cvMaskCopy.setTo(1,cvMaskCopy>=Dtype(0.5));
+        }
 
         Dtype sumOfElementWiseLoss = 0;
         for (int i=0;i<m_predictionHeight;i++)
@@ -80,7 +95,11 @@ void MaskFocalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,c
             {
                 Dtype mask_ij = cvMaskCopy.at<Dtype>(i,j);
                 Dtype pred_ij = cvPredictionCopy.at<Dtype>(i,j);
-                LOG_IF(FATAL, mask_ij != 1 && mask_ij != 0)<<"Inavlid mask "<< mask_ij;
+                if(m_is_segmentation)
+                {
+                    LOG_IF(FATAL, mask_ij != 1 && mask_ij != 0)<<"Inavlid mask "<< mask_ij;
+                }
+
                 LOG_IF(FATAL, pred_ij < 0 || pred_ij > 1)<<"Invalid pred "<< pred_ij;
                 Dtype attenuation_factor = m_alpha*std::pow(pred_ij - mask_ij,m_gamma);
                 Dtype loss = 0;
@@ -130,6 +149,11 @@ void MaskFocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,con
 			cv::resize(cvMaskCopy, cvMaskCopy, cv::Size(m_predictionHeight, m_predictionWidth), cv::INTER_NEAREST);
 
         cvMaskCopy/=Dtype(255);
+        if(m_is_segmentation)
+        {
+            cvMaskCopy.setTo(0,cvMaskCopy<Dtype(0.5));
+            cvMaskCopy.setTo(1,cvMaskCopy>=Dtype(0.5));
+        }
 
         for (int height = 0; height < predictions->shape(2); height++)
         {

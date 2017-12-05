@@ -15,8 +15,7 @@ namespace caffe {
 template <typename Dtype>
 class MaskCrossEntropyLossLayer : public LossLayer<Dtype> {
  public:
-  explicit MaskCrossEntropyLossLayer(const LayerParameter& param)
-      : LossLayer<Dtype>(param) {}
+  explicit MaskCrossEntropyLossLayer(const LayerParameter& param);
 
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -46,6 +45,7 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
    Dtype m_numerical_stable_value;
    Dtype m_low_loss;
    Dtype m_epsilon;
+   bool m_is_segmentation;
 };
 
 }  // namespace caffe

@@ -15,8 +15,8 @@ namespace caffe {
 template <typename Dtype>
 class MaskFocalLossLayer : public LossLayer<Dtype> {
  public:
-  explicit MaskFocalLossLayer(const LayerParameter& param)
-      : LossLayer<Dtype>(param) {}
+  explicit MaskFocalLossLayer(const LayerParameter& param) ;
+      
 
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -48,6 +48,7 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
    Dtype m_epsilon;
    Dtype m_gamma;
    Dtype m_alpha;
+   bool m_is_segmentation;
 };
 
 }  // namespace caffe
