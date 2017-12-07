@@ -11,10 +11,14 @@ template <typename Dtype>
 AlphaPredictionBGFGLossLayer<Dtype>::AlphaPredictionBGFGLossLayer(const LayerParameter& param):LossLayer<Dtype>(param) 
 {
    m_epsilonSquare = (1e-6)*(1e-6);
-   if (param.has_loss_param() == true && param.loss_param().has_ignore_label() == true)
-       m_ignore_label = param.loss_param().ignore_label();
-   else
-       m_ignore_label = int(0);
+   if (param.has_loss_param() == true)
+   {
+        if(param.loss_param().has_ignore_label() == true)
+            m_ignore_label = param.loss_param().ignore_label();
+        else
+            m_ignore_label = int(0);
+        m_is_segmentation = param.loss_param().is_segmentation();
+    }
 }
 
 
@@ -78,6 +82,11 @@ void AlphaPredictionBGFGLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>
             cv::resize(cvMaskCopy, cvMaskCopy, cv::Size(m_predictionHeight, m_predictionWidth), cv::INTER_NEAREST);
                         
         cvMaskCopy/=Dtype(255);
+        if(m_is_segmentation)
+        {
+            cvMaskCopy.setTo(0,cvMaskCopy<LossLayer<Dtype>::m_segmentation_threshold);
+            cvMaskCopy.setTo(1,cvMaskCopy>=LossLayer<Dtype>::m_segmentation_threshold);
+        }
         if (m_use_trimap == true)
             norm_factor = 0;
 
@@ -145,6 +154,11 @@ void AlphaPredictionBGFGLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*
             cv::resize(cvMaskCopy, cvMaskCopy, cv::Size(m_predictionHeight, m_predictionWidth), cv::INTER_NEAREST);
 
         cvMaskCopy/=Dtype(255);
+        if(m_is_segmentation)
+        {
+            cvMaskCopy.setTo(0,cvMaskCopy<LossLayer<Dtype>::m_segmentation_threshold);
+            cvMaskCopy.setTo(1,cvMaskCopy>=LossLayer<Dtype>::m_segmentation_threshold);
+        }
 
         for (int height = 0; height < predictions_fg->shape(2); height++)
         {

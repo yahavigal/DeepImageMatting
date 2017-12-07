@@ -82,8 +82,8 @@ void MaskCrossEntropyLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& b
     cvMaskCopy/=Dtype(255);
     if (m_is_segmentation)
     {
-        cvMaskCopy.setTo(0,cvMaskCopy<Dtype(0.5));
-        cvMaskCopy.setTo(1,cvMaskCopy>=Dtype(0.5));
+        cvMaskCopy.setTo(0,cvMaskCopy<LossLayer<Dtype>::m_segmentation_threshold);
+        cvMaskCopy.setTo(1,cvMaskCopy>=LossLayer<Dtype>::m_segmentation_threshold);
     }
 
     Dtype sumOfElementWiseLoss = 0;
@@ -147,8 +147,8 @@ void MaskCrossEntropyLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
         cvMaskCopy/=Dtype(255);
         if(m_is_segmentation)
         {
-            cvMaskCopy.setTo(0,cvMaskCopy<Dtype(0.5));
-            cvMaskCopy.setTo(1,cvMaskCopy>=Dtype(0.5));
+            cvMaskCopy.setTo(0,cvMaskCopy<LossLayer<Dtype>::m_segmentation_threshold);
+            cvMaskCopy.setTo(1,cvMaskCopy>=LossLayer<Dtype>::m_segmentation_threshold);
         }
 
         for (int height = 0; height < predictions->shape(2); height++)

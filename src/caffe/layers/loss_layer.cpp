@@ -5,6 +5,12 @@
 namespace caffe {
 
 template <typename Dtype>
+LossLayer<Dtype>::LossLayer(const LayerParameter& param): Layer<Dtype>(param)
+{
+    if (param.has_loss_param())
+        m_segmentation_threshold = param.loss_param().segmentation_threshold();
+}
+template <typename Dtype>
 void LossLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // LossLayers have a non-zero (1) loss by default.

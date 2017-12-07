@@ -11,10 +11,14 @@ template <typename Dtype>
 AlphaPredictionLossLayer<Dtype>::AlphaPredictionLossLayer(const LayerParameter& param):LossLayer<Dtype>(param) 
 {
    m_epsilonSquare = (1e-6)*(1e-6);
-   if (param.has_loss_param() == true && param.loss_param().has_ignore_label() == true)
-    m_ignore_label = param.loss_param().ignore_label();
-   else
-    m_ignore_label = int(0);
+   if (param.has_loss_param() == true)
+   {
+        if(param.loss_param().has_ignore_label() == true)
+            m_ignore_label = param.loss_param().ignore_label();
+        else
+            m_ignore_label = int(0);
+        m_is_segmentation = param.loss_param().is_segmentation();
+    }   
 }
 
 

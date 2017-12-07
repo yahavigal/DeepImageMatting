@@ -39,6 +39,8 @@ protected:
     Dtype m_epsilonSquare;
     bool m_use_trimap;
     int m_ignore_label;
+    bool m_is_segmentation;
+
 
 };
 
