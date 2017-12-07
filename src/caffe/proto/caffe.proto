@@ -459,6 +459,7 @@ message LossParameter {
   // normalization = BATCH_SIZE to be consistent with previous behavior.
   optional bool normalize = 2;
   optional bool is_segmentation = 4 [default = false];
+  optional float segmentation_threshold = 5 [default = 0.5];
 }
 
 // Messages that store parameters used by individual layer types follow, in
