@@ -164,7 +164,8 @@ void MaskFocalBGFGLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
     CHECK_EQ(predictions_bg->shape(1), 1) << "Icorrect size of channels.";
     
     CHECK_EQ(propagate_down[0],true);
-    CHECK_EQ(propagate_down[1],false);
+    CHECK_EQ(propagate_down[1],true);
+    CHECK_EQ(propagate_down[2],false);
     
     int num = bottom[0]->shape(0);
     int dim = predictions_fg->shape(1)*predictions_fg->shape(2)*predictions_fg->shape(3);
