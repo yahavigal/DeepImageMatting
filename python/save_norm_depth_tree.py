@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 #python save_norm_depth_tree.py --root /media/or/Data/deepImageMatting/ --images_list /media/or/Data/dataLists/dataSet_1/test_list_orig.txt --caseDirName Set1_07_2017 --outputSubDir set1_07_2017_depth_norm_v2
+
+# --algoType 0
+
 gt_ext = "_silhuette"
 adverserial_ext = "_adv"
 
@@ -57,20 +60,32 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
         #plt.show()
         minVal, maxVal,_, _ = cv2.minMaxLoc(d_im);
         print 'minVal = ', minVal
-        print 'maxVal = ', maxVal 
-        thresh0 = 0
-        thresh1 = 1800
-        d_im[ d_im > thresh1] = 0
-        d_im[ d_im < thresh0] = 0 
+        print 'maxVal = ', maxVal          
 
         if algoType == 0:
+            thresh0 = 0
+            thresh1 = 1800
+            d_im[ d_im > thresh1] = 0
+            d_im[ d_im < thresh0] = 0
             minVal, maxVal,_, _ = cv2.minMaxLoc(d_im);
             d_im_n = (255*(d_im - minVal)/(maxVal - minVal))
         elif algoType == 1:
+            thresh0 = 0
+            thresh1 = 1800
+            d_im[ d_im > thresh1] = 0
+            d_im[ d_im < thresh0] = 0
             d_im_f = np.float32(d_im )
             d_im_n = (255.*(d_im_f/1800.))
             d_im_n = np.uint8(d_im_n)
-        
+        elif algoType == 3:
+            thresh0 = 0
+            thresh1 = 1800
+            d_im[ d_im > thresh1] = thresh1
+            d_im[ d_im < thresh0] = thresh0
+            d_im_f = np.float32(d_im )
+            d_im_n = (255.*(d_im_f/1800.))
+            d_im_n = np.uint8(d_im_n)
+       
         cv2.imwrite(depth_norm_path,d_im_n)
 
 
