@@ -31,7 +31,7 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
     #main loop
     for image_path in images_list:
 
-        depth_path = image_path.replace("color","depth")
+        depth_path = image_path.replace("color",target_ext)
         depth_norm_path = depth_path.replace(caseDirName, outputSubDir)
 
         print('image_path = ', image_path)        
@@ -39,7 +39,7 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
         print('depth_norm_path = ', depth_norm_path)
 
         if depth_norm_path == depth_path:
-            print('src path and dst path are same, which is not allowed, coninue')
+            print('src path and dst path are same, which is not allowed, continue')
             continue
 
         if not os.path.exists(depth_path):
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--images_list', type=str, required=True)
     parser.add_argument('--caseDirName', type=str, required=True)
     parser.add_argument('--outputSubDir', type=str, required=True)
-    parser.add_argument('--target_ext', type=str, required=False, default="depth_")
+    parser.add_argument('--target_ext', type=str, required=False, default="depth")
     parser.add_argument('--algoType', type=int, required=False, default=0)
     args = parser.parse_args()
 
