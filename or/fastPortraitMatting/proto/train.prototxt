@@ -17,8 +17,8 @@ layer {
   type: "Convolution"
   bottom: "data"
   top: "conv_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 13
     kernel_size: 3
@@ -52,8 +52,8 @@ layer {
   type: "Convolution"
   bottom: "concat_1"
   top: "conv_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 16
     pad: 2
@@ -83,8 +83,8 @@ layer {
   type: "Convolution"
   bottom: "concat_2"
   top: "conv_3"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 16
     kernel_size: 3
@@ -145,8 +145,8 @@ layer {
   type: "Convolution"
   bottom: "concat_4"
   top: "conv_5"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 16
     kernel_size: 3
@@ -193,11 +193,12 @@ layer {
   type: "Deconvolution"
   bottom: "conv_6"
   top: "upsampling_1"
-  param { lr_mult: 1 decay_mult: 1 } 
+  param { lr_mult: 0 decay_mult: 0 }
   convolution_param {
     kernel_size: 4
     stride: 2
     num_output: 2
+    group: 2
     pad:  1
     weight_filler: { type: "bilinear" }
     bias_term: false
@@ -257,8 +258,8 @@ layer {
   type: "Convolution"
   bottom: "concat_feathering"
   top: "conv_feathering_1"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 8
     kernel_size: 3
@@ -272,22 +273,22 @@ layer {
   type: "BatchNorm"
   bottom: "conv_feathering_1"
   top: "bn_1"
-  batch_norm_param { use_global_stats: true }
+  batch_norm_param { use_global_stats: false}
 }
 layer {
   name: "relu_feathering_1"
   type: "ReLU"
   bottom: "bn_1"
   top: "bn_1"
-  relu_param{ negative_slope: 0.0 }
+  relu_param{ negative_slope: 0.0  }
 }
 layer {
   name: "conv_feathering_2"
   type: "Convolution"
   bottom: "bn_1"
   top: "conv_feathering_2"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 3
     kernel_size: 3
@@ -344,11 +345,16 @@ layer {
 #-------------------losses and IOU layers --------------------------
 layer {
   name: "loss"
-#  type: "MaskCrossEntropyLoss"
-  type: "AlphaPredictionLoss"
+  # type: "MaskCrossEntropyLoss"
+  # type: "AlphaPredictionLoss"
+  type: "MaskFocalLoss"
   bottom: "alpha_pred"
   bottom: "alpha_gt"
   top: "loss"
+  loss_param {
+    is_segmentation: true
+    segmentation_threshold: 0.5
+    }
 }
 #layer {
 #  name: "loss"
