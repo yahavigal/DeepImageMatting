@@ -2,15 +2,15 @@ name: "fast portrait matting"
 
 input: "data"
 input_dim: 1
-input_dim: 3
-input_dim: 256
-input_dim: 256
+input_dim: 4
+input_dim: 128
+input_dim: 128
 
 input: "alpha_gt"
 input_dim: 1
 input_dim: 1
-input_dim: 256
-input_dim: 256
+input_dim: 128
+input_dim: 128
 #----------------- segmentation block------------------------
 layer {
   name: "conv_1"
@@ -184,6 +184,8 @@ layer {
     num_output: 2
     kernel_size: 3
     pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" value: 0 }
   }
 }
 layer {
@@ -197,9 +199,16 @@ layer {
     stride: 2
     num_output: 2
     pad:  1
+    group: 2
     weight_filler: { type: "bilinear" }
     bias_term: false
   }
+}
+layer { 
+  name: "sigmoid"
+  type: "Sigmoid"
+  bottom: "upsampling_1"
+  top: "upsampling_1"
 }
 #------------------ feathering block inputs -------------------------
 layer {
@@ -216,36 +225,41 @@ layer {
 #-------------------losses and IOU layers --------------------------
 layer {
   name: "loss1"
-  type: "AlphaPredictionLoss"
+  type: "MaskFocalBGFGLoss"
   bottom: "alpha_pred"
+  bottom: "background"
   bottom: "alpha_gt"
   top: "loss"
-  #loss_weight: 0.5
+  loss_param {
+    is_segmentation: true
+    segmentation_threshold: 0.5
+  }
 }
 #layer {
 #  name: "loss1"
 #  type: "MaskCrossEntropyLoss"
 #  bottom: "alpha_pred"
+#  bottom: "background"
 #  bottom: "alpha_gt"
 #  top: "alpha_loss"
 #  #loss_weight: 0.5
 #}
-layer {
-  name: "loss2"
-  type: "FeatheringCompositionalLoss"
-  bottom: "alpha_pred"
-  bottom: "alpha_gt"
-  bottom: "data"
-  top: "comp_loss"
-  loss_weight: 0
-}
+#layer {
+#  name: "loss2"
+#  type: "FeatheringCompositionalLoss"
+#  bottom: "alpha_pred"
+#  bottom: "alpha_gt"
+#  bottom: "data"
+#  top: "comp_loss"
+#  loss_weight: 0
+#}
 layer {
   name: "iou"
   type: "MaskIOU"
   bottom: "alpha_pred"
   bottom: "alpha_gt"
   top: "mask_accuracy"
-  threshold_param { threshold: 0.9 }
+  threshold_param { threshold: 0.5 }
 }
 
  
