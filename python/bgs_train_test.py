@@ -41,7 +41,7 @@ class bgs_test_train:
         self.gt_ext = "_silhuette"
         self.trimap_ext = None
         if trimap_dir is not None:
-            if "triMap_" in trimap_dir:
+            if "triMap" in trimap_dir:
                 self.trimap_ext = "triMap_"
             else:
                 self.trimap_ext = "_depth"
@@ -181,7 +181,9 @@ class bgs_test_train:
                                        split[0],frame_num+self.trimap_ext+".png")
 
             if not os.path.isfile(trimap_path):
-                return [None, None, None]
+                trimap_path = os.path.join(self.trimap_dir,split[0],self.trimap_ext +frame_num+".png")
+                if not os.path.isfile(trimap_path):
+                    return [None, None, None]
 
             trimap = cv2.imread(trimap_path,0)
             trimap_r = cv2.resize(trimap, (self.img_width,self.img_height),interpolation = cv2.INTER_NEAREST)
@@ -434,7 +436,7 @@ class bgs_test_train:
         print "{} average loss on test: {} average accuracy on test {}".format(self.exp_name,
                                                                         np.average(self.test_loss),
                                                                         np.average(self.test_acc))
-        
+
         print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
         if self.use_tf_inference ==True:
@@ -493,16 +495,17 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_dir', type=str, required=True)
-    parser.add_argument('--test_dir', type=str, required=True)
-    parser.add_argument('--trimap_dir', type=str, required=False, default = None)
-    parser.add_argument('--solver', type=str, required=True)
-    parser.add_argument('--model', type=str, required=False, default = None)
-    parser.add_argument('--epochs', type=int, required=False, default = 60)
-    parser.add_argument('--DSD', action = 'store_true')
-    parser.add_argument('--no_shuffle', action='store_false')
+    parser.add_argument('--train_dir', type=str, required=True, help="train directory path or list")
+    parser.add_argument('--test_dir', type=str, required=True, help="test directory path or list")
+    parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output")
+    parser.add_argument('--solver', type=str, required=True,help="path to solver")
+    parser.add_argument('--model', type=str, required=False, default = None, help="pre-trained weights path")
+    parser.add_argument('--epochs', type=int, required=False, default = 60, help="number or epochs each epoch is equivalent to ")
+    parser.add_argument('--DSD', action = 'store_true', help="use dense-sparse-dense mask and train with this restriction")
+    parser.add_argument('--no_shuffle', action='store_false', help="training with no shuffle, shuufle the data by default")
+    parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
     args = parser.parse_args()
-
+    caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
                  shuffle=args.no_shuffle)
 
