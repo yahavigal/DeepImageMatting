@@ -8,7 +8,7 @@ Created on Sun Aug 27 23:21:08 2017
 from bgs_train_test import *
 import argparse
 
-def test_net(images_dir_test, net_path,weights_path, trimap_dir,save_loss_per_image =False,finetune=None):
+def test_net(images_dir_test, net_path,weights_path, trimap_dir,save_loss_per_image =False,finetune=None,is_save_fig =True):
     if finetune is None:
         train_list =""
     else:
@@ -17,7 +17,7 @@ def test_net(images_dir_test, net_path,weights_path, trimap_dir,save_loss_per_im
                              save_loss_per_image=save_loss_per_image)
     
    
-    var = trainer.test()
+    var = trainer.test(is_save_fig=is_save_fig)
     trainer.plot_statistics()
     return var
 

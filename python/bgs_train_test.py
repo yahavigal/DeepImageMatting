@@ -437,6 +437,10 @@ class bgs_test_train:
                                                                         np.average(self.test_loss),
                                                                         np.average(self.test_acc))
 
+        print "{} average loss on train: {} average accuracy on train {}".format(self.exp_name,
+                                                                               np.average(self.train_loss),
+                                                                               np.average(self.train_acc))
+
         print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
         if self.use_tf_inference ==True:
