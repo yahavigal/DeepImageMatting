@@ -20,6 +20,8 @@ import platform
 from PIL import Image
 import sys
 import re
+from collections import defaultdict
+
 
 def find_data_root_ind(image,trimap_root):
     ind = 0
@@ -41,7 +43,7 @@ class bgs_test_train:
         self.gt_ext = "_silhuette"
         self.trimap_ext = None
         if trimap_dir is not None:
-            if "triMap_" in trimap_dir:
+            if "triMap" in trimap_dir:
                 self.trimap_ext = "triMap_"
             else:
                 self.trimap_ext = "_depth"
@@ -123,10 +125,8 @@ class bgs_test_train:
         self.save_test_by_loss = save_loss_per_image
         self.use_tf_inference = False
         self.snapshot_path = snapshot_path
-        self.train_loss = []
-        self.test_loss = []
-        self.train_acc = []
-        self.test_acc = []
+        self.train_measures = defaultdict(list)
+        self.test_measures = defaultdict(list)
 
         if self.use_tf_inference == True:
             sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
@@ -181,7 +181,9 @@ class bgs_test_train:
                                        split[0],frame_num+self.trimap_ext+".png")
 
             if not os.path.isfile(trimap_path):
-                return [None, None, None]
+                trimap_path = os.path.join(self.trimap_dir,split[0],self.trimap_ext +frame_num+".png")
+                if not os.path.isfile(trimap_path):
+                    return [None, None, None]
 
             trimap = cv2.imread(trimap_path,0)
             trimap_r = cv2.resize(trimap, (self.img_width,self.img_height),interpolation = cv2.INTER_NEAREST)
@@ -248,13 +250,13 @@ class bgs_test_train:
                 if layer not in self.DSD_masks.keys():
                     continue
                 blob[0].data[self.DSD_masks[layer]] = 0
-
         self.iter_ind += 1
-        print self.iter_ind, " loss: " ,net.blobs['loss'].data
-        self.train_loss.append(net.blobs['loss'].data.flatten()[0])
-        if 'mask_accuracy' in net.blobs:
-            print self.iter_ind, " mask accuray: " ,net.blobs['mask_accuracy'].data
-            self.train_acc.append(net.blobs['mask_accuracy'].data.flatten()[0])
+
+        for output in net.outputs:
+            if output == 'alpha_pred':
+                continue
+            self.train_measures[output].append(net.blobs[output].data.flatten()[0])
+            print self.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
 
         if self.iter_ind % self.snapshot == 0:
             print "snapshot iter {}".format(self.iter_ind)
@@ -265,7 +267,18 @@ class bgs_test_train:
 
     def test(self, is_save_fig = True):
 
+        if self.solver is not None:
+            net = self.solver.net
+        else:
+            net = self.net
 
+        test_log_file = open("test_log_file.txt","w")
+        test_log_file.write('image path ')
+        for output in net.outputs:
+            if output == 'alpha_pred':
+                continue
+            test_log_file.write(" {}".format(output))
+        test_log_file.write('\n')
         diff_caffe_tf = []
         times = []
         loss_per_image = {}
@@ -280,10 +293,6 @@ class bgs_test_train:
         #no data augmentation in test
         trimap_r = None
         self.use_data_aug = False
-        if self.solver is not None:
-            net = self.solver.net
-        else:
-            net = self.net
 
         for image in self.images_list_test:
             if self.trimap_dir != None:
@@ -318,13 +327,18 @@ class bgs_test_train:
                 tf_res,iou = self.tf_trainer.run_inference(img_r,mask_r)
                 avg_iou_tf.append(iou)
 
+            test_log_file.write(image)
+            for output in net.outputs:
+                if output == 'alpha_pred':
+                    continue
+                self.test_measures[output].append(net.blobs[output].data.flatten()[0])
+                test_log_file.write(" {}".format(self.test_measures[output][-1]))
+            test_log_file.write('\n')
 
-            self.test_loss.append(net.blobs['loss'].data.flatten()[0])
+
             if self.save_test_by_loss == True:
-                loss_per_image[self.test_loss[-1]] = image
+                loss_per_image[self.test_measures['loss'][-1]] = image
 
-            if 'mask_accuracy' in net.blobs:
-                self.test_acc.append(net.blobs['mask_accuracy'].data.flatten()[0])
             if is_save_fig == True:
                 fig,ax = plt.subplots(1)
                 ax.axis('off')
@@ -365,17 +379,20 @@ class bgs_test_train:
                 overlay_thresh = np.multiply(image_orig/np.max(image_orig),
                                              mask_r_thresh[:,:,np.newaxis])
                 split = os.path.splitext(image.replace(os.sep,"_"))[0]
-
+                iou = int(100*self.test_measures['mask_accuracy'][-1])
                 ax.imshow(mattImage)
-                fig_path = split+"_iou_{}.fig.jpg".format(int(100*self.test_acc[-1]))
+                fig_path = split+"_iou_{}.fig.jpg".format(iou)
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
 
                 ax.imshow(overlay_thresh)
-                fig_path = split +"_iou_{}.threshold.fig.jpg".format(int(100*self.test_acc[-1]))
+                fig_path = split +"_iou_{}.threshold.fig.jpg".format(iou)
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
                 plt.close(fig)
+                mask_path = split +"_iou_{}.mask.png".format(iou)
+                mask_path = os.path.join(self.results_path,mask_path)
+                cv2.imwrite(mask_path,255*mask_r)
 
                 if self.dump_bin ==True:
                     bin_path = fig_path.replace(".fig.jpg",".input.bin")
@@ -428,52 +445,49 @@ class bgs_test_train:
                     plt.close(fig)
 
 
+        for output in net.outputs:
+            if output == 'alpha_pred':
+                continue
+            print "{} average {} on test: {} ".format(self.exp_name,output,np.average(self.test_measures[output]))
+            print "{} average {} on train: {} ".format(self.exp_name,output,np.average(self.train_measures[output]))
 
-
-
-        print "{} average loss on test: {} average accuracy on test {}".format(self.exp_name,
-                                                                        np.average(self.test_loss),
-                                                                        np.average(self.test_acc))
-        
         print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
         if self.use_tf_inference ==True:
-            print "average accuracy on test in TF {}".format(np.average(avg_iou_tf))
+            print "average iou on test in TF {}".format(np.average(avg_iou_tf))
             plt.hist(diff_caffe_tf, bins=100)
             plt.show()
 
+        test_log_file.close()
+
         if self.save_test_by_loss == True:
             return loss_per_image
-        return np.average(self.test_loss), np.average(self.test_acc)
+        return np.average(self.test_measures['loss']), np.average(self.test_measures['mask_accuracy'])
 
 
     def plot_statistics(self):
         fig = plt.figure()
         fig.canvas.set_window_title(self.exp_name)
 
-        plt.subplot(2,2,1)
-        plt.title('train loss')
-        plt.plot(xrange(len(self.train_loss)),self.train_loss)
-        plt.xlabel('# iter')
-        plt.ylabel('train loss')
+        if self.solver is not None:
+            net = self.solver.net
+        else:
+            net = self.net
 
-        plt.subplot(2,2,2)
-        plt.title('test loss')
-        plt.plot(xrange(len(self.test_loss)),self.test_loss)
-        plt.xlabel('# iter')
-        plt.ylabel('test loss')
+        for i,output in enumerate(net.outputs):
+            if output == 'alpha_pred':
+                continue
+            plt.subplot(2,len(self.train_measures),i+1)
+            plt.title('train {}'.format(output))
+            plt.plot(xrange(len(self.train_measures[output])),self.train_measures[output])
+            plt.xlabel('# iter')
+            plt.ylabel('train {}'.format(output))
 
-        plt.subplot(2,2,3)
-        plt.title('train accuracy')
-        plt.plot(xrange(len(self.train_acc)),self.train_acc)
-        plt.xlabel('# iter')
-        plt.ylabel('train accuracy')
-
-        plt.subplot(2,2,4)
-        plt.title('test accuracy')
-        plt.plot(xrange(len(self.test_acc)),self.test_acc)
-        plt.xlabel('# iter')
-        plt.ylabel('test accuracy')
+            plt.subplot(2,len(self.train_measures),i+1+len(self.train_measures))
+            plt.title('test {}'.format(output))
+            plt.plot(xrange(len(self.test_measures[output])),self.test_measures[output])
+            plt.xlabel('# iter')
+            plt.ylabel('test {}'.format(output))
 
         plt.show()
 
@@ -493,16 +507,17 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_dir', type=str, required=True)
-    parser.add_argument('--test_dir', type=str, required=True)
-    parser.add_argument('--trimap_dir', type=str, required=False, default = None)
-    parser.add_argument('--solver', type=str, required=True)
-    parser.add_argument('--model', type=str, required=False, default = None)
-    parser.add_argument('--epochs', type=int, required=False, default = 60)
-    parser.add_argument('--DSD', action = 'store_true')
-    parser.add_argument('--no_shuffle', action='store_false')
+    parser.add_argument('--train_dir', type=str, required=True, help="train directory path or list")
+    parser.add_argument('--test_dir', type=str, required=True, help="test directory path or list")
+    parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output")
+    parser.add_argument('--solver', type=str, required=True,help="path to solver")
+    parser.add_argument('--model', type=str, required=False, default = None, help="pre-trained weights path")
+    parser.add_argument('--epochs', type=int, required=False, default = 60, help="number or epochs each epoch is equivalent to ")
+    parser.add_argument('--DSD', action = 'store_true', help="use dense-sparse-dense mask and train with this restriction")
+    parser.add_argument('--no_shuffle', action='store_false', help="training with no shuffle, shuufle the data by default")
+    parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
     args = parser.parse_args()
-
+    caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
                  shuffle=args.no_shuffle)
 
