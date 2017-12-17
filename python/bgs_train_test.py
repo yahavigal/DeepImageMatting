@@ -21,70 +21,26 @@ from PIL import Image
 import sys
 import re
 from collections import defaultdict
-
-
-def find_data_root_ind(image,trimap_root):
-    ind = 0
-    image_split = image.split(os.sep)
-    trimap_split = trimap_root.split(os.sep)
-    while image_split[ind] == trimap_split[ind]:
-        ind +=1
-    return ind +1
-
+from data_provider import *
 
 current_milli_time = lambda: int(round(time.time() * 1000))
-
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True):
 
-        self.gt_ext = "_silhuette"
-        self.trimap_ext = None
+        self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
+                                          batch_size=batch_size,use_data_aug=True,use_adv_data_train=False)
+
         if trimap_dir is not None:
             if "triMap" in trimap_dir:
                 self.trimap_ext = "triMap_"
             else:
                 self.trimap_ext = "_depth"
-        self.adverserial_ext = "_adv"
-        self.use_adv_data_train = False
-        self.trimap_dir = trimap_dir
-        self.batch_size = batch_size
         self.exp_name = platform.node() + " " + solver_path.split(os.sep)[-3]
         if trimap_dir is not None:
             self.exp_name += self.trimap_ext
-
-
-        if os.path.isdir(images_dir_train):
-           self.images_list_train = [os.path.join(images_dir_train,x)
-                                     for x in os.listdir(images_dir_train)
-                                     if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        elif os.path.isfile(images_dir_train):
-            images = open(images_dir_train).readlines()
-            images = [x[0:-1] for x in images if x.endswith('\n')]
-            self.images_list_train = [x for x in images
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1
-                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)]
-        else:
-            self.images_list_train = None
-
-        if os.path.isdir(images_dir_test):
-            self.images_list_test = [os.path.join(images_dir_test,x)
-                                     for x in os.listdir(images_dir_test)
-                                     if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        elif os.path.isfile(images_dir_test):
-            images = open(images_dir_test).readlines()
-            images = [x[0:-1] for x in images if x.endswith('\n')]
-            self.images_list_test = [x for x in images
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        else:
-            self.images_list_test = None
-
-        self.trimap_dir =  trimap_dir
-
-        if self.images_list_train is not None and shuffle_data == True:
-            random.shuffle(self.images_list_train)
 
         if solver_path.find('solver') != -1:
             self.solver = caffe.get_solver(solver_path)
@@ -110,18 +66,11 @@ class bgs_test_train:
             self.DSD_masks = np.load(path_DSD_masks).item()
 
 
-        self.img_width =128
-        self.img_height = 128
-        self.list_ind = 0
-        self.epoch_ind = 0
-        self.iter_ind = 0
         self.snapshot = snapshot
         self.snapshot_diff = snapshot_diff
-        self.shuffle = shuffle_data
-        self.use_data_aug = True
         self.infer_only_trimap = False
         self.dump_bin = False
-        self.view_all = False
+        self.view_all = True
         self.save_test_by_loss = save_loss_per_image
         self.use_tf_inference = False
         self.snapshot_path = snapshot_path
@@ -134,109 +83,8 @@ class bgs_test_train:
             convert_to_tf.load_caffe_weights(solver_path,weights_path)
             self.tf_trainer =  convert_to_tf.TF_trainer()
 
-
-
-    def get_tuple_data_point(self, image_path):
-
-        if not os.path.exists(image_path):
-            if self.trimap_dir == None:
-                return [None, None]
-            else:
-                return [None, None, None]
-        img = cv2.imread(image_path)
-        img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB).astype('float32')
-
-        if self.use_data_aug == True:
-
-            #image based data augmentation
-            coin = np.random.uniform(0,1,1)
-            if coin <= 0.25:
-                img = data_augmentation.color_jitter(img)
-            elif coin <= 0.5:
-                img = data_augmentation.PCA_noise(img)
-            elif coin <= 0.75:
-                img = data_augmentation.gamma_correction(img)
-
-        #subtract mean
-        img -= np.array([104,117,123],dtype=np.float32)
-        img_r = cv2.resize(img, (self.img_width,self.img_height))
-        path = os.path.splitext(image_path)
-        gt_path = path[0] + self.gt_ext + path[1]
-        if not os.path.isfile(gt_path):
-            if self.trimap_dir == None:
-                return [None, None]
-            else:
-                return [None, None, None]
-        mask = cv2.imread(gt_path,0)
-        mask_r = cv2.resize(mask, (self.img_width,self.img_height),interpolation = cv2.INTER_NEAREST)
-
-        ind = find_data_root_ind(image_path,self.trimap_dir)
-        split = image_path.split(os.sep)[ind:]
-        split = os.sep.join(split)
-        frame_num = re.findall(r'\d+', split)[-1]
-        split = os.path.split(split)
-
-        if self.trimap_dir != None:
-            trimap_path = os.path.join(self.trimap_dir,
-                                       split[0],frame_num+self.trimap_ext+".png")
-
-            if not os.path.isfile(trimap_path):
-                trimap_path = os.path.join(self.trimap_dir,split[0],self.trimap_ext +frame_num+".png")
-                if not os.path.isfile(trimap_path):
-                    return [None, None, None]
-
-            trimap = cv2.imread(trimap_path,0)
-            trimap_r = cv2.resize(trimap, (self.img_width,self.img_height),interpolation = cv2.INTER_NEAREST)
-
-            if self.use_data_aug == True:
-                #rotation / filipping data augmentation
-                coin = np.random.uniform(0,1,1)
-                if  coin <= 0.33:
-                    img_r, mask_r, trimap_r = data_augmentation.horizontal_flipping(img_r, mask_r,trimap_r)
-                elif coin <= 0.66:
-                    img_r, mask_r, trimap_r = data_augmentation.rotate(img_r,mask_r,trimap_r)
-
-
-            trimap_r = trimap_r.reshape([1,self.img_height,self.img_width])
-            mask_r = mask_r.reshape([1,self.img_height,self.img_width])
-            img_r = img_r.transpose([2,0,1])
-
-            return img_r,mask_r,trimap_r
-        else:
-            mask_r = mask_r.reshape([1,self.img_height,self.img_width])
-            img_r = img_r.transpose([2,0,1])
-            return img_r,mask_r
-
-    def get_batch_data(self,batch_size = 32):
-        batch=[]
-        masks = []
-        while len(batch) < batch_size:
-            if self.list_ind>= len(self.images_list_train):
-                print "starting from beginning of the list"
-                if self.shuffle == True:
-                    random.shuffle(self.images_list_train)
-                self.epoch_ind += 1
-                self.list_ind = 0
-            if self.trimap_dir == None:
-                img_r,mask_r = self.get_tuple_data_point(self.images_list_train[self.list_ind])
-            else:
-                img_r,mask_r,trimap_r = self.get_tuple_data_point(self.images_list_train[self.list_ind])
-            if img_r is None or mask_r is None:
-                self.list_ind += 1
-                continue
-
-            if 'trimap_r' in locals():
-                img_r = np.concatenate((img_r,trimap_r),axis = 0)
-
-            batch.append(img_r)
-            masks.append(mask_r)
-            self.list_ind += 1
-
-
-        return np.array(batch),np.array(masks)
-
     def train(self):
-        images, masks = self.get_batch_data(self.batch_size)
+        images, masks = self.data_provider.get_batch_data()
         net = self.solver.net
         net.blobs[net.inputs[0]].reshape(*images.shape)
         net.blobs[net.inputs[1]].reshape(*masks.shape)
@@ -250,17 +98,17 @@ class bgs_test_train:
                 if layer not in self.DSD_masks.keys():
                     continue
                 blob[0].data[self.DSD_masks[layer]] = 0
-        self.iter_ind += 1
+        self.data_provider.iter_ind += 1
 
         for output in net.outputs:
             if output == 'alpha_pred':
                 continue
             self.train_measures[output].append(net.blobs[output].data.flatten()[0])
-            print self.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
+            print self.data_provider.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
 
-        if self.iter_ind % self.snapshot == 0:
-            print "snapshot iter {}".format(self.iter_ind)
-            snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.iter_ind)+".caffemodel")
+        if self.data_provider.iter_ind % self.snapshot == 0:
+            print "snapshot iter {}".format(self.data_provider.iter_ind)
+            snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+".caffemodel")
             self.solver.net.save(snapshot_file, self.snapshot_diff)
 
         return net.blobs['loss'].data
@@ -283,9 +131,9 @@ class bgs_test_train:
         times = []
         loss_per_image = {}
         avg_iou_tf =[]
-        if self.use_tf_inference == True and self.images_list_train is not None:
+        if self.use_tf_inference == True and self.data_provider.images_list_train is not None:
             for i in xrange(5000):
-                x,y = self.get_batch_data(1)
+                x,y = self.data_provider.get_batch_data(1)
                 _, loss, _  = self.tf_trainer.run_fine_tune_to_deconv(x,y)
                 #print "loss for fine tune is: {} IOU is: {}".format(loss,iou)
             self.tf_trainer.save()
@@ -294,26 +142,10 @@ class bgs_test_train:
         trimap_r = None
         self.use_data_aug = False
 
-        for image in self.images_list_test:
-            if self.trimap_dir != None:
-                img_r,mask_r,trimap_r = self.get_tuple_data_point(image)
-            else:
-                img_r,mask_r = self.get_tuple_data_point(image)
+        for image in self.data_provider.images_list_test:
 
-            if img_r is None:
-                continue
+            img_r,mask_r = self.data_provider.get_test_data()
 
-            if self.trimap_dir is not None and trimap_r is None:
-                continue
-
-            if self.trimap_dir is not None and 'trimap_r' in locals() and trimap_r is  None:
-                continue
-
-            if trimap_r is not None:
-                img_r = np.concatenate((img_r,trimap_r),axis =0)
-            ls = img_r.flatten().tolist()
-            img_r = img_r.reshape(1,*img_r.shape)
-            mask_r = mask_r.reshape(1,*mask_r.shape)
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
             net.blobs[net.inputs[0]].data[...]= img_r
@@ -342,10 +174,8 @@ class bgs_test_train:
             if is_save_fig == True:
                 fig,ax = plt.subplots(1)
                 ax.axis('off')
-                image_orig = cv2.imread(image)
-                image_orig = cv2.cvtColor(image_orig,cv2.COLOR_BGR2RGB).astype('float32')
-                gt_mask = mask_r.reshape((img_r.shape[2],img_r.shape[3]))
-                gt_mask = cv2.resize(gt_mask, (image_orig.shape[1],image_orig.shape[0]),interpolation = cv2.INTER_NEAREST)
+                image_orig = self.data_provider.img_orig
+                gt_mask = self.data_provider.mask_orig
                 mask = net.blobs['alpha_pred'].data
                 if self.use_tf_inference ==True:
                     diff_caffe_tf.append(np.mean( np.bitwise_or(np.bitwise_and(mask >=0.5,tf_res<0.5),np.bitwise_and(mask <0.5,tf_res>=0.5))))
@@ -355,7 +185,7 @@ class bgs_test_train:
                     mask /= 255.0
 
                 if self.infer_only_trimap == True:
-                    trimap = trimap_r.reshape((trimap_r.shape[2],img_r.shape[3],1))
+                    trimap = self.data_provider.trimap_resized
                     mask[trimap == 255] = 1
                     mask[trimap== 128 ] = 0
                     trimap = cv2.resize(trimap, (image_orig.shape[1],image_orig.shape[0]))
@@ -385,11 +215,8 @@ class bgs_test_train:
                 fig_path = os.path.join(self.results_path,fig_path)
                 plt.savefig(fig_path)
 
-                ax.imshow(overlay_thresh)
-                fig_path = split +"_iou_{}.threshold.fig.jpg".format(iou)
-                fig_path = os.path.join(self.results_path,fig_path)
-                plt.savefig(fig_path)
                 plt.close(fig)
+
                 mask_path = split +"_iou_{}.mask.png".format(iou)
                 mask_path = os.path.join(self.results_path,mask_path)
                 cv2.imwrite(mask_path,255*mask_r)
@@ -412,9 +239,9 @@ class bgs_test_train:
                     plt.subplot(2,2,1)
                     plt.axis('off')
                     plt.title("trimap input")
-                    trimap = trimap_r.reshape((trimap_r.shape[2],img_r.shape[3],1))
-                    trimap = np.repeat(trimap,3,axis = 2)
-                    trimap = cv2.resize(trimap,(image_orig.shape[1],image_orig.shape[0]))
+                    trimap = self.data_provider.trimap_orig
+                    trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
+                    #trimap = cv2.resize(trimap,(image_orig.shape[1],image_orig.shape[0]))
                     trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
                     image_trimap = Image.fromarray(trimap)
                     image_Image = Image.fromarray(image_orig.astype(np.uint8))
@@ -439,7 +266,7 @@ class bgs_test_train:
                     algo_res = Image.fromarray(algo_res)
                     algo_res = Image.blend(algo_res,image_Image,0.8)
                     plt.imshow(algo_res)
-                    fig_path = split +"_iou_{}.all.fig.jpg".format(int(100*self.test_acc[-1]))
+                    fig_path = split +"_iou_{}.all.fig.jpg".format(iou)
                     fig_path = os.path.join(self.results_path,fig_path)
                     plt.savefig(fig_path)
                     plt.close(fig)
@@ -497,7 +324,8 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
                              trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle)
 
-    while trainer.epoch_ind < epochs_num:
+    while trainer.data_provider.epoch_ind < epochs_num:
+    #while trainer.epoch_ind < epochs_num:
         trainer.train()
 
     trainer.test()
