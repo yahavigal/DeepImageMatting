@@ -6,19 +6,11 @@ from tensorflow import gfile as gfile
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from google.protobuf import text_format
-#from recognition.benchmark.benchmark_utils import load_data
-#from common.log_print import Logger
-#from common import graph_loader
 
 import ipdb
 
-# def run_inference(self, image,gt):
-#        data_tf_fromat = image.transpose([0, 2, 3, 1])
-#        mask_tf_fromat = gt.transpose([0, 2, 3, 1])
-#        pred,iou = self.sess.run([self.graph,mask_iou(self.graph,self.input_mask)],
-#                             feed_dict={self.input_tensor: data_tf_fromat, self.input_mask: mask_tf_fromat})
-#        return pred.transpose([0, 3, 1, 2]),iou
+# python run_TF_freezedModel.py --model_path ../or/fastPortraitMatting/results/Resu2save/toTF/95.91_128_toPlay/TF_95.905/fastPortraitMatting.pb --output_dir ../or/fastPortraitMatting/results/Resu2save/toTF/95.91_128_toPlay/TF_95.905/play/ --imgs_list_path /media/or/Data/dataLists/dataSet_1/train_list.txt --depth_trimap_root_dir set1_07_2017_depth_norm --images_root_dir Set1_07_2017 --target_ext depth
+
 
 def mask_iou(pred,gt,thresh = 0.5):
     intersection = tf.logical_and(pred >= thresh,gt >= thresh)
@@ -38,6 +30,7 @@ class run_TF_freezedModel:
         self.depth_trimap_root_dir = args.depth_trimap_root_dir
         self.images_root_dir = args.images_root_dir
         self.get_images_list(args.imgs_list_path)
+        self.dump_bin = False
 
     
     def get_images_list(self, imgs_list_path):
@@ -128,6 +121,30 @@ class run_TF_freezedModel:
 
         cv2.imwrite(img_path, pred_fs)
 
+    def dump_data_to_file(self, output_dir, image_path,input_data, pred_tf):
+        if self.dump_bin ==True:
+            output = os.path.join(output_dir, 'dumps')
+            if not os.path.exists(output):
+                os.makedirs(output)
+
+            output_data = pred_tf.copy()
+            sh = output_data.shape
+            output_data = output_data.reshape(sh[1], sh[2])
+
+            split = os.path.splitext(image_path.replace(os.sep,"_"))[0]
+            bin_path_in  = os.path.join( output, split + "_input.bin")
+            bin_path_out = os.path.join( output, split + "_output.bin")
+            dump_in  = open(bin_path_in,'w')
+            dump_out = open(bin_path_out,'w')
+            ls_in  = input_data.flatten().tolist()
+            ls_out = output_data.flatten().tolist()
+            for item in ls_in:
+                dump_in.write(str(int(item))+'\n')
+            dump_in.close()
+            for item in ls_out:
+                dump_out.write(str(int(item*255))+'\n')
+            dump_out.close()
+
     def run_tf_model(self, model_path, output_dir):
 
         preds_res = []
@@ -168,7 +185,8 @@ class run_TF_freezedModel:
                         ious_to_check.append(iou)
       
  
-                    self.save_pred_as_img( pred_res, iou, image_path, output_dir) 
+                    self.save_pred_as_img( pred_res, iou, image_path, output_dir)
+                    self.dump_data_to_file( output_dir, image_path, img_r, pred_res ) 
 
                                      
                    
@@ -180,7 +198,7 @@ def main(args):
     
     tf_runer = run_TF_freezedModel(args)
     ious, imgs_to_check, ious_to_check = tf_runer.run_tf_model(args.model_path, args.output_dir)
-    ipdb.set_trace()
+
     print('TF mean accuraccy is ', np.mean(ious))
 
     print (imgs_to_check)
