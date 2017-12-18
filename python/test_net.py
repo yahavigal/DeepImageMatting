@@ -5,6 +5,8 @@ Created on Sun Aug 27 23:21:08 2017
 @author: or
 """
 
+# python test_net.py --finetune ../or/deepImageMatting/scripts/train_list.txt --test_dir ../or/deepImageMatting/scripts/test_list.txt --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm/ --net ../or/fastPortraitMatting/results/Resu2save/toTF/95.91_128/train.prototxt  --model  ../or/fastPortraitMatting/results/Resu2save/toTF/95.91_128/_iter_1792_MaxAccuracy9691.caffemodel
+
 from bgs_train_test import *
 import argparse
 
