@@ -25,6 +25,11 @@ from data_provider import *
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 
+#python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/train_list.txt --test_dir ../or/deepImageMatting/scripts/test_list.txt --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_1792_MaxAccuracy9691.caffemodel
+
+#or@ortrainubuntu5:~/caffe-BGS-win/python$ python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/composed/train_list.txt --test_dir ../or/deepImageMatting/scripts/composed/test_list.txt --trimap_dir /media/or/Data/composed/DataSet_2_composed_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_9180_MaxAccuracy8968.caffemodel
+
+
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
@@ -76,6 +81,8 @@ class bgs_test_train:
         self.snapshot_path = snapshot_path
         self.train_measures = defaultdict(list)
         self.test_measures = defaultdict(list)
+        self.maxAccuracy = 0.0;
+        self.saveByMaxAccuracy = False
 
         if self.use_tf_inference == True:
             sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
@@ -105,6 +112,20 @@ class bgs_test_train:
                 continue
             self.train_measures[output].append(net.blobs[output].data.flatten()[0])
             print self.data_provider.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
+        
+        if self.saveByMaxAccuracy == True:
+            if 'mask_accuracy' in self.train_measures.keys():                       
+                isTosaveMaxAccuracyModel = False 
+                if self.maxAccuracy < self.train_measures['mask_accuracy'][-1] :
+                    self.maxAccuracy = self.train_measures['mask_accuracy'][-1] 
+                    isTosaveMaxAccuracyModel = True
+
+                if isTosaveMaxAccuracyModel == True:
+                    isTosaveMaxAccuracyModel = False
+                    print "snapshot iter {}".format(self.data_provider.iter_ind)
+                    snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+"_MaxAccuracy" + str(int(10000*net.blobs['mask_accuracy'].data.flatten()[0]))+".caffemodel")
+                    self.solver.net.save(snapshot_file, self.snapshot_diff)
+                 
 
         if self.data_provider.iter_ind % self.snapshot == 0:
             print "snapshot iter {}".format(self.data_provider.iter_ind)
@@ -137,6 +158,7 @@ class bgs_test_train:
                 _, loss, _  = self.tf_trainer.run_fine_tune_to_deconv(x,y)
                 #print "loss for fine tune is: {} IOU is: {}".format(loss,iou)
             self.tf_trainer.save()
+            print "data saved"
 
         #no data augmentation in test
         trimap_r = None
