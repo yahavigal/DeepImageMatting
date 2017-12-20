@@ -16,13 +16,13 @@ def find_data_root_ind(image,trimap_root):
 
 class DataProvider :
     def __init__(self, images_dir_test, images_dir_train,trimap_dir=None, shuffle_data=True,
-                 batch_size = 32, use_data_aug = True, use_adv_data_train = False):
+                 batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1):
 
         self.gt_ext = "_silhuette"
         self.trimap_ext = None
         if trimap_dir is not None:
-            if "triMap_" in trimap_dir:
-                self.trimap_ext = "triMap_"
+            if "trimap" in trimap_dir.lower():
+                self.trimap_ext = "_triMap"
             else:
                 self.trimap_ext = "_depth"
         self.adverserial_ext = "_adv"
@@ -31,6 +31,7 @@ class DataProvider :
         self.batch_size = batch_size
         self.shuffle = shuffle_data
         self.use_data_aug = use_data_aug
+        self.threshold_param = threshold_param
 
         if os.path.isdir(images_dir_train):
             self.images_list_train = [os.path.join(images_dir_train, x)
@@ -119,6 +120,9 @@ class DataProvider :
             else:
                 return [None, None, None]
         mask = cv2.imread(gt_path, 0)
+        if self.threshold_param != -1:
+            mask[mask < 256*self.threshold_param] = 0
+            mask[mask >= 256*self.threshold_param] = 1
         self.mask_orig = mask
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         self.mask_resized = mask_r
@@ -165,7 +169,7 @@ class DataProvider :
         masks = []
         while len(batch) < batch_size:
             if self.list_ind >= len(self.images_list_train):
-                print "starting from beginning of the list"
+                print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
                 if self.shuffle == True:
                     random.shuffle(self.images_list_train)
                 self.epoch_ind += 1
@@ -189,12 +193,11 @@ class DataProvider :
 
 
     def get_test_data(self,batch_size = 1):
-        self.use_data_aug = False
         batch = []
         masks = []
         while len(batch) < batch_size:
             if self.test_list_ind >= len(self.images_list_test):
-              break
+              return None,None
             if self.trimap_dir == None:
                 img_r, mask_r = self.get_tuple_data_point(self.images_list_test[self.test_list_ind])
             else:

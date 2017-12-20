@@ -22,8 +22,21 @@ import sys
 import re
 from collections import defaultdict
 from data_provider import *
+from google.protobuf import text_format
+from caffe.proto import caffe_pb2
 
 current_milli_time = lambda: int(round(time.time() * 1000))
+
+def check_threshold_param(net_file,threshold):
+    if threshold == -1:
+        return
+    net = caffe_pb2.NetParameter()
+    text_format.Merge(open(net_file).read(),net)
+    for layer in net.layer:
+        if layer.type == "MaskIOU":
+            if threshold != layer.threshold_param.threshold:
+                raise Exception("IOU threshold not consistent with the threshold supplied")
+
 
 #python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/train_list.txt --test_dir ../or/deepImageMatting/scripts/test_list.txt --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_1792_MaxAccuracy9691.caffemodel
 
@@ -32,15 +45,14 @@ current_milli_time = lambda: int(round(time.time() * 1000))
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
-                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
-                 trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True):
+                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = True,
+                 trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
+                 threshold = -1):
 
-        self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
-                                          batch_size=batch_size,use_data_aug=True,use_adv_data_train=False)
-
+        self.threhold_param = threshold
         if trimap_dir is not None:
-            if "triMap" in trimap_dir:
-                self.trimap_ext = "triMap_"
+            if "trimap" in trimap_dir.lower():
+                self.trimap_ext = "_triMap"
             else:
                 self.trimap_ext = "_depth"
         self.exp_name = platform.node() + " " + solver_path.split(os.sep)[-3]
@@ -49,9 +61,17 @@ class bgs_test_train:
 
         if solver_path.find('solver') != -1:
             self.solver = caffe.get_solver(solver_path)
+            sp = caffe_pb2.SolverParameter()
+            text_format.Merge(open(solver_path).read(),sp)
+            check_threshold_param(sp.net,threshold)
         else:
             self.solver = None
             self.net = caffe.Net(solver_path, weights_path,caffe.TEST)
+            check_threshold_param(solver_path,threshold)
+
+        self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
+                                          batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
+                                          threshold_param= self.threhold_param)
 
         if weights_path != None and weights_path != "" and os.path.isfile(weights_path):
             if self.solver is not None:
@@ -75,7 +95,7 @@ class bgs_test_train:
         self.snapshot_diff = snapshot_diff
         self.infer_only_trimap = False
         self.dump_bin = False
-        self.view_all = True
+        self.view_all = False
         self.save_test_by_loss = save_loss_per_image
         self.use_tf_inference = False
         self.snapshot_path = snapshot_path
@@ -96,6 +116,8 @@ class bgs_test_train:
         net.blobs[net.inputs[0]].reshape(*images.shape)
         net.blobs[net.inputs[1]].reshape(*masks.shape)
         net.blobs[net.inputs[0]].data[...]= images
+        #if False: for future use
+        #    masks = np.insert(masks,1,1-masks[:,0,:],axis=1)
         net.blobs[net.inputs[1]].data[...]= masks
         self.solver.step(1)
 
@@ -112,12 +134,12 @@ class bgs_test_train:
                 continue
             self.train_measures[output].append(net.blobs[output].data.flatten()[0])
             print self.data_provider.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
-        
+
         if self.saveByMaxAccuracy == True:
-            if 'mask_accuracy' in self.train_measures.keys():                       
-                isTosaveMaxAccuracyModel = False 
+            if 'mask_accuracy' in self.train_measures.keys():
+                isTosaveMaxAccuracyModel = False
                 if self.maxAccuracy < self.train_measures['mask_accuracy'][-1] :
-                    self.maxAccuracy = self.train_measures['mask_accuracy'][-1] 
+                    self.maxAccuracy = self.train_measures['mask_accuracy'][-1]
                     isTosaveMaxAccuracyModel = True
 
                 if isTosaveMaxAccuracyModel == True:
@@ -125,7 +147,7 @@ class bgs_test_train:
                     print "snapshot iter {}".format(self.data_provider.iter_ind)
                     snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+"_MaxAccuracy" + str(int(10000*net.blobs['mask_accuracy'].data.flatten()[0]))+".caffemodel")
                     self.solver.net.save(snapshot_file, self.snapshot_diff)
-                 
+
 
         if self.data_provider.iter_ind % self.snapshot == 0:
             print "snapshot iter {}".format(self.data_provider.iter_ind)
@@ -162,11 +184,12 @@ class bgs_test_train:
 
         #no data augmentation in test
         trimap_r = None
-        self.use_data_aug = False
+        self.data_provider.use_data_aug = False
 
         for image in self.data_provider.images_list_test:
-
             img_r,mask_r = self.data_provider.get_test_data()
+            if img_r is None or mask_r is None:
+                continue
 
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
@@ -255,7 +278,7 @@ class bgs_test_train:
                         out_dump.write(str(int(item*255))+'\n')
                     out_dump.close()
 
-                if self.view_all == True:
+                if self.view_all == True: #buggy for now
                     fig = plt.figure(figsize = (8,8))
                     fig.canvas.set_window_title("bla bla")
                     plt.subplot(2,2,1)
@@ -273,8 +296,9 @@ class bgs_test_train:
                     plt.subplot(2,2,2)
                     plt.axis('off')
                     plt.title("GT input")
+
                     gt_input = np.array(Image.fromarray(gt_mask).convert('RGB'))
-                    gt_input[np.any(gt_input == [255,255,255],axis = -1)] = (255,0,0)
+                    gt_input[np.any(gt_input >= [128,128,128],axis = -1)] = (255,0,0)
                     gt_input = Image.fromarray(gt_input)
                     gt_blend = Image.blend(gt_input,image_Image,0.8)
                     plt.imshow(gt_blend)
@@ -282,7 +306,8 @@ class bgs_test_train:
                     plt.subplot(2,2,3)
                     plt.axis('off')
                     plt.title("algo results")
-                    mask_r[mask_r > 0.5] = 1
+                    mask_r[mask_r >= 0.5] = 1
+                    mask_r[mask_r < 0.5] = 0
                     algo_res = np.array(Image.fromarray(mask_r).convert('RGB'))
                     algo_res[np.any(algo_res == [1,1,1],axis = -1)] = (255,0,0)
                     algo_res = Image.fromarray(algo_res)
@@ -292,7 +317,6 @@ class bgs_test_train:
                     fig_path = os.path.join(self.results_path,fig_path)
                     plt.savefig(fig_path)
                     plt.close(fig)
-
 
         for output in net.outputs:
             if output == 'alpha_pred':
@@ -340,11 +364,11 @@ class bgs_test_train:
 
         plt.show()
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,threshold):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
-                             trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle)
+                             trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle,threshold=threshold)
 
     while trainer.data_provider.epoch_ind < epochs_num:
     #while trainer.epoch_ind < epochs_num:
@@ -366,10 +390,11 @@ if __name__ == "__main__":
     parser.add_argument('--DSD', action = 'store_true', help="use dense-sparse-dense mask and train with this restriction")
     parser.add_argument('--no_shuffle', action='store_false', help="training with no shuffle, shuufle the data by default")
     parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
+    parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
-                 shuffle=args.no_shuffle)
+                 shuffle=args.no_shuffle,threshold=args.threshold)
 
 
 
