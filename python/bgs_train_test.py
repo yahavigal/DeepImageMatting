@@ -26,6 +26,8 @@ from google.protobuf import text_format
 from caffe.proto import caffe_pb2
 
 current_milli_time = lambda: int(round(time.time() * 1000))
+def sigmoid(arr):
+    return 1.0/(1+np.exp(-arr))
 
 def check_threshold_param(net_file,threshold):
     if threshold == -1:
@@ -45,7 +47,7 @@ def check_threshold_param(net_file,threshold):
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
-                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = True,
+                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
                  threshold = -1):
 
@@ -95,7 +97,7 @@ class bgs_test_train:
         self.snapshot_diff = snapshot_diff
         self.infer_only_trimap = False
         self.dump_bin = False
-        self.view_all = False
+        self.view_all = True
         self.save_test_by_loss = save_loss_per_image
         self.use_tf_inference = False
         self.snapshot_path = snapshot_path
@@ -195,6 +197,7 @@ class bgs_test_train:
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
             net.blobs[net.inputs[0]].data[...]= img_r
             net.blobs[net.inputs[1]].data[...]= mask_r
+            ls = img_r.flatten().tolist()
 
             start = current_milli_time()
             net.forward()
@@ -226,33 +229,22 @@ class bgs_test_train:
                     diff_caffe_tf.append(np.mean( np.bitwise_or(np.bitwise_and(mask >=0.5,tf_res<0.5),np.bitwise_and(mask <0.5,tf_res>=0.5))))
                 mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
 
-                if np.max(mask) == 255:
-                    mask /= 255.0
+                if (np.min(mask) < 0 or np.max(mask) > 1):
+                    mask = sigmoid(mask)
 
                 if self.infer_only_trimap == True:
                     trimap = self.data_provider.trimap_resized
                     mask[trimap == 255] = 1
                     mask[trimap== 128 ] = 0
-                    trimap = cv2.resize(trimap, (image_orig.shape[1],image_orig.shape[0]))
+
                 mask_r = cv2.resize(mask, (image_orig.shape[1],image_orig.shape[0]))
-                mask_r_thresh = mask_r.copy()
-                if self.infer_only_trimap == True:
-                    zv = np.bitwise_and(mask_r < 0.5, trimap == 0)
-                    ov = np.bitwise_and(mask_r >= 0.5, trimap == 0)
-                else:
-                    zv = mask_r < 0.5
-                    ov = mask_r >= 0.5
-                mask_r_thresh[zv] = 0
-                mask_r_thresh[ov] = 1
                 bg = cv2.imread('bg.jpg')
                 bg = cv2.cvtColor(bg,cv2.COLOR_BGR2RGB)
                 bg = cv2.resize(bg,(image_orig.shape[1],image_orig.shape[0]))
                 bg  = np.multiply(bg/255.0,1 - mask_r[:,:,np.newaxis])
-
                 overlay = np.multiply(image_orig/np.max(image_orig),mask_r[:,:,np.newaxis])
                 mattImage = overlay + bg
-                overlay_thresh = np.multiply(image_orig/np.max(image_orig),
-                                             mask_r_thresh[:,:,np.newaxis])
+
                 split = os.path.splitext(image.replace(os.sep,"_"))[0]
                 iou = int(100*self.test_measures['mask_accuracy'][-1])
                 ax.imshow(mattImage)
@@ -280,13 +272,11 @@ class bgs_test_train:
 
                 if self.view_all == True: #buggy for now
                     fig = plt.figure(figsize = (8,8))
-                    fig.canvas.set_window_title("bla bla")
                     plt.subplot(2,2,1)
                     plt.axis('off')
                     plt.title("trimap input")
                     trimap = self.data_provider.trimap_orig
                     trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
-                    #trimap = cv2.resize(trimap,(image_orig.shape[1],image_orig.shape[0]))
                     trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
                     image_trimap = Image.fromarray(trimap)
                     image_Image = Image.fromarray(image_orig.astype(np.uint8))
@@ -296,25 +286,28 @@ class bgs_test_train:
                     plt.subplot(2,2,2)
                     plt.axis('off')
                     plt.title("GT input")
-
-                    gt_input = np.array(Image.fromarray(gt_mask).convert('RGB'))
-                    gt_input[np.any(gt_input >= [128,128,128],axis = -1)] = (255,0,0)
-                    gt_input = Image.fromarray(gt_input)
+                    gt_mask*=255
+                    gt_mask = np.repeat(np.expand_dims(gt_mask,axis=2),3,axis=2)
+                    gt_mask[:,:,1:] = 0
+                    gt_input = Image.fromarray(gt_mask)
                     gt_blend = Image.blend(gt_input,image_Image,0.8)
                     plt.imshow(gt_blend)
 
                     plt.subplot(2,2,3)
                     plt.axis('off')
                     plt.title("algo results")
-                    mask_r[mask_r >= 0.5] = 1
-                    mask_r[mask_r < 0.5] = 0
-                    algo_res = np.array(Image.fromarray(mask_r).convert('RGB'))
-                    algo_res[np.any(algo_res == [1,1,1],axis = -1)] = (255,0,0)
-                    algo_res = Image.fromarray(algo_res)
+                    if self.threhold_param != -1:
+                        mask_r[mask_r >= self.threhold_param] = 1
+                        mask_r[mask_r < self.threhold_param] = 0
+                    mask_r = np.repeat(np.expand_dims(mask_r,axis=2),3,axis=2)
+                    mask_r[:,:,1:] = 0
+                    algo_res = Image.fromarray((mask_r*255).astype(np.uint8))
                     algo_res = Image.blend(algo_res,image_Image,0.8)
                     plt.imshow(algo_res)
                     fig_path = split +"_iou_{}.all.fig.jpg".format(iou)
+                    fig.canvas.set_window_title(fig_path)
                     fig_path = os.path.join(self.results_path,fig_path)
+
                     plt.savefig(fig_path)
                     plt.close(fig)
 
@@ -371,7 +364,6 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
                              trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle,threshold=threshold)
 
     while trainer.data_provider.epoch_ind < epochs_num:
-    #while trainer.epoch_ind < epochs_num:
         trainer.train()
 
     trainer.test()
