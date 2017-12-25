@@ -360,7 +360,7 @@ layer {
 layer {
   name: "iou"
   type: "MaskIOU"
-  bottom: "alpha_pred"
+  bottom: "alpha_pred_s"
   bottom: "alpha_gt"
   top: "mask_accuracy"
   threshold_param { threshold: 0.5 }
