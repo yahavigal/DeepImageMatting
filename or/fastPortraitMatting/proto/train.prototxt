@@ -340,29 +340,23 @@ layer {
   name: "sigmoid"
   type: "Sigmoid"
   bottom: "alpha_pred"
-  top: "alpha_pred"
+  top: "alpha_pred_s"
 } 
 #-------------------losses and IOU layers --------------------------
 layer {
   name: "loss"
   # type: "MaskCrossEntropyLoss"
+  type: "SigmoidCrossEntropyLoss"
   # type: "AlphaPredictionLoss"
-  type: "MaskFocalLoss"
+  # type: "MaskFocalLoss"
   bottom: "alpha_pred"
   bottom: "alpha_gt"
   top: "loss"
-  loss_param {
-    is_segmentation: true
-    segmentation_threshold: 0.5
-    }
+  #loss_param {
+  #  is_segmentation: true
+  #  segmentation_threshold: 0.5
+  #  }
 }
-#layer {
-#  name: "loss"
-#  type: "FeatheringCompositionalLoss"
-#  bottom: "alpha_pred"
-#  bottom: "alpha_gt"
-#  top: "comp_loss"
-#}
 layer {
   name: "iou"
   type: "MaskIOU"
@@ -370,6 +364,13 @@ layer {
   bottom: "alpha_gt"
   top: "mask_accuracy"
   threshold_param { threshold: 0.5 }
+}
+layer {
+  name: "abs_diff"
+  type: "MaskAbsDiff"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_absdiff"
 }
 
  

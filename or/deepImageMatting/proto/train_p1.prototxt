@@ -1,16 +1,16 @@
 name: "Deep image matting"
 
 input: "data"
-input_dim: 32
+input_dim: 1
 input_dim: 4
-input_dim: 256
-input_dim: 256
+input_dim: 224
+input_dim: 224
 
 input: "alpha_gt"
-input_dim: 32
 input_dim: 1
-input_dim: 256
-input_dim: 256
+input_dim: 1
+input_dim: 224
+input_dim: 224
 
 #---------------------- common VGG-16 layers ----------------------
 layer {
@@ -585,12 +585,13 @@ layer {
   name: "sigmoid_pred"
    type: "Sigmoid"
   bottom: "alpha_pred"
-  top: "alpha_pred" 
+  top: "alpha_pred_s" 
 }
 #---------------paper specific loss layer-------------------
 layer {
   name: "loss"
-  type: "MaskCrossEntropyLoss"
+  #type: "MaskCrossEntropyLoss"
+  type: "SigmoidCrossEntropyLoss"
   bottom: "alpha_pred"
   bottom: "alpha_gt"
   top: "loss"
@@ -598,9 +599,15 @@ layer {
 layer {
   name: "iou"
   type: "MaskIOU"
-  bottom: "alpha_pred"
+  bottom: "alpha_pred_s"
   bottom: "alpha_gt"
   top: "mask_accuracy"
   threshold_param { threshold: 0.5 }
-} 
-   
+}    
+layer {
+  name: "abs_diff"
+  type: "MaskAbsDiff"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_absdiff"
+}

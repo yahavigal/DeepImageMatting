@@ -235,24 +235,6 @@ layer {
     segmentation_threshold: 0.5
   }
 }
-#layer {
-#  name: "loss1"
-#  type: "MaskCrossEntropyLoss"
-#  bottom: "alpha_pred"
-#  bottom: "background"
-#  bottom: "alpha_gt"
-#  top: "alpha_loss"
-#  #loss_weight: 0.5
-#}
-#layer {
-#  name: "loss2"
-#  type: "FeatheringCompositionalLoss"
-#  bottom: "alpha_pred"
-#  bottom: "alpha_gt"
-#  bottom: "data"
-#  top: "comp_loss"
-#  loss_weight: 0
-#}
 layer {
   name: "iou"
   type: "MaskIOU"
@@ -260,6 +242,13 @@ layer {
   bottom: "alpha_gt"
   top: "mask_accuracy"
   threshold_param { threshold: 0.5 }
+}
+layer {
+  name: "abs_diff"
+  type: "MaskAbsDiff"
+  bottom: "alpha_pred"
+  bottom: "alpha_gt"
+  top: "mask_absdiff"
 }
 
  
