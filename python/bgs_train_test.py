@@ -24,6 +24,7 @@ from collections import defaultdict
 from data_provider import *
 from google.protobuf import text_format
 from caffe.proto import caffe_pb2
+import shutil
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 def sigmoid(arr):
@@ -74,6 +75,8 @@ class bgs_test_train:
         self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
                                           batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
                                           threshold_param= self.threhold_param)
+        self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
+        self.exp_name += "_threshold_{}".format(self.threhold_param)
 
         if weights_path != None and weights_path != "" and os.path.isfile(weights_path):
             if self.solver is not None:
@@ -84,6 +87,11 @@ class bgs_test_train:
             self.results_path = snapshot_path.replace(snapshot_path.split('/')[-1],"results")
         else:
             self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
+
+        if not os.path.exists(self.snapshot_path):
+            os.makedirs(self.snapshot_path)
+        if not os.path.exists(self.results_path):
+            os.makedirs(self.results_path)
 
         self.DSD_masks = None
         self.DSD_flag = DSD_flag
@@ -165,7 +173,7 @@ class bgs_test_train:
         else:
             net = self.net
 
-        test_log_file = open("test_log_file.txt","w")
+        test_log_file = open(os.path.join(self.results_path,"test_log_file.txt"),"w")
         test_log_file.write('image path ')
         for output in net.outputs:
             if output == 'alpha_pred':
@@ -365,6 +373,9 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 
     while trainer.data_provider.epoch_ind < epochs_num:
         trainer.train()
+
+    shutil.rmtree(trainer.results_path, ignore_errors=True)
+    os.mkdir(trainer.results_path)
 
     trainer.test()
     trainer.plot_statistics()
