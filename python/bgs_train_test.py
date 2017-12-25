@@ -200,7 +200,6 @@ class bgs_test_train:
             img_r,mask_r = self.data_provider.get_test_data()
             if img_r is None or mask_r is None:
                 continue
-
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
             net.blobs[net.inputs[0]].data[...]= img_r
@@ -365,7 +364,7 @@ class bgs_test_train:
 
         plt.show()
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,threshold):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,threshold,publish):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
@@ -378,6 +377,10 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     os.mkdir(trainer.results_path)
 
     trainer.test()
+    if publish is not None:
+        shutil.copytree(trainer.results_path,
+                        os.path.join(publish,trainer.exp_name.replace(' ','_')),
+                        ignore = shutil.ignore_patterns('*.caffemodel'))
     trainer.plot_statistics()
 
 
@@ -394,10 +397,11 @@ if __name__ == "__main__":
     parser.add_argument('--no_shuffle', action='store_false', help="training with no shuffle, shuufle the data by default")
     parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
     parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
+    parser.add_argument('--publish', type=str,required=False, default = None, help= "copy results folder into a share drive")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
-                 shuffle=args.no_shuffle,threshold=args.threshold)
+                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish)
 
 
 
