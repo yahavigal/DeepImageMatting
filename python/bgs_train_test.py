@@ -88,10 +88,6 @@ class bgs_test_train:
         else:
             self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
 
-        if not os.path.exists(self.snapshot_path):
-            os.makedirs(self.snapshot_path)
-        if not os.path.exists(self.results_path):
-            os.makedirs(self.results_path)
 
         self.DSD_masks = None
         self.DSD_flag = DSD_flag
@@ -99,7 +95,6 @@ class bgs_test_train:
             path_DSD_masks = os.path.splitext(weights_path)
             path_DSD_masks = path_DSD_masks[0]+"_DSD_mask"+path_DSD_masks[1]+".npy"
             self.DSD_masks = np.load(path_DSD_masks).item()
-
 
         self.snapshot = snapshot
         self.snapshot_diff = snapshot_diff
@@ -113,6 +108,11 @@ class bgs_test_train:
         self.test_measures = defaultdict(list)
         self.maxAccuracy = 0.0;
         self.saveByMaxAccuracy = False
+
+        if not os.path.exists(self.snapshot_path):
+            os.makedirs(self.snapshot_path)
+        if not os.path.exists(self.results_path):
+            os.makedirs(self.results_path)
 
         if self.use_tf_inference == True:
             sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
