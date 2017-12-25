@@ -55,7 +55,6 @@ void MaskAbsDiffLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
         cv::Mat cvMask(masks->shape(2), masks->shape(3), CV_32FC1, (void*)(masks->cpu_data() + offsetMask)), cvMaskCopy;
         cvMask.copyTo(cvMaskCopy);
-        cvMaskCopy/=Dtype(255);
 
         Dtype sumOfDiff = 0;
 
