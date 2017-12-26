@@ -140,7 +140,7 @@ class bgs_test_train:
         self.data_provider.iter_ind += 1
 
         for output in net.outputs:
-            if output == 'alpha_pred':
+            if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             self.train_measures[output].append(net.blobs[output].data.flatten()[0])
             print self.data_provider.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
@@ -176,7 +176,7 @@ class bgs_test_train:
         test_log_file = open(os.path.join(self.results_path,"test_log_file.txt"),"w")
         test_log_file.write('image path ')
         for output in net.outputs:
-            if output == 'alpha_pred':
+            if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             test_log_file.write(" {}".format(output))
         test_log_file.write('\n')
@@ -216,7 +216,7 @@ class bgs_test_train:
 
             test_log_file.write(image)
             for output in net.outputs:
-                if output == 'alpha_pred':
+                if output == 'alpha_pred' or output == 'alpha_pred_s':
                     continue
                 self.test_measures[output].append(net.blobs[output].data.flatten()[0])
                 test_log_file.write(" {}".format(self.test_measures[output][-1]))
@@ -231,7 +231,7 @@ class bgs_test_train:
                 ax.axis('off')
                 image_orig = self.data_provider.img_orig
                 gt_mask = self.data_provider.mask_orig
-                mask = net.blobs['alpha_pred'].data
+                mask = net.blobs['alpha_pred_s'].data
                 if self.use_tf_inference ==True:
                     diff_caffe_tf.append(np.mean( np.bitwise_or(np.bitwise_and(mask >=0.5,tf_res<0.5),np.bitwise_and(mask <0.5,tf_res>=0.5))))
                 mask = mask.reshape((img_r.shape[2],img_r.shape[3],1))
@@ -252,7 +252,8 @@ class bgs_test_train:
                 overlay = np.multiply(image_orig/np.max(image_orig),mask_r[:,:,np.newaxis])
                 mattImage = overlay + bg
 
-                split = os.path.splitext(image.replace(os.sep,"_"))[0]
+                last_sep = [m.start() for m in re.finditer(r'{}'.format(os.sep),image)][self.data_provider.root_data_ind-1]
+                split = os.path.splitext(image[last_sep:].replace(os.sep,"_"))[0]
                 iou = int(100*self.test_measures['mask_accuracy'][-1])
                 ax.imshow(mattImage)
                 fig_path = split+"_iou_{}.fig.jpg".format(iou)
@@ -277,7 +278,7 @@ class bgs_test_train:
                         out_dump.write(str(int(item*255))+'\n')
                     out_dump.close()
 
-                if self.view_all == True: #buggy for now
+                if self.view_all == True:
                     fig = plt.figure(figsize = (8,8))
                     plt.subplot(2,2,1)
                     plt.axis('off')
@@ -315,11 +316,16 @@ class bgs_test_train:
                     fig.canvas.set_window_title(fig_path)
                     fig_path = os.path.join(self.results_path,fig_path)
 
+                    #plt.subplot(2,2,4)
+                    #plt.axis('off')
+                    #plt.title("mask abs diff")
+                    #plt.imshow(np.abs(mask_r - gt_mask))
+
                     plt.savefig(fig_path)
                     plt.close(fig)
 
         for output in net.outputs:
-            if output == 'alpha_pred':
+            if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             print "{} average {} on test: {} ".format(self.exp_name,output,np.average(self.test_measures[output]))
             print "{} average {} on train: {} ".format(self.exp_name,output,np.average(self.train_measures[output]))
@@ -348,7 +354,7 @@ class bgs_test_train:
             net = self.net
 
         for i,output in enumerate(net.outputs):
-            if output == 'alpha_pred':
+            if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             plt.subplot(2,len(self.train_measures),i+1)
             plt.title('train {}'.format(output))
@@ -378,8 +384,14 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 
     trainer.test()
     if publish is not None:
-        shutil.copytree(trainer.results_path,
-                        os.path.join(publish,trainer.exp_name.replace(' ','_')),
+        dst_path = trainer.exp_name.replace(' ','_')
+        dst_path_candidate = dst_path + "_0"
+        dst_path_candidate = os.path.join(publish,dst_path_candidate)
+        while os.path.exists(dst_path_candidate):
+            exp_num = int(dst_path_candidate.split('_')[-1])
+            dst_path_candidate ='{}_{}'.format(dst_path,exp_num+1)
+            dst_path_candidate = os.path.join(publish,dst_path_candidate)
+        shutil.copytree(trainer.results_path,dst_path_candidate,
                         ignore = shutil.ignore_patterns('*.caffemodel'))
     trainer.plot_statistics()
 
