@@ -109,7 +109,7 @@ class bgs_test_train:
         self.maxAccuracy = 0.0;
         self.saveByMaxAccuracy = False
 
-        if not os.path.exists(self.snapshot_path):
+        if not os.path.exists(self.snapshot_path) and self.data_provider.images_list_train is not None:
             os.makedirs(self.snapshot_path)
         if not os.path.exists(self.results_path):
             os.makedirs(self.results_path)
@@ -393,6 +393,7 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
             dst_path_candidate = os.path.join(publish,dst_path_candidate)
         shutil.copytree(trainer.results_path,dst_path_candidate,
                         ignore = shutil.ignore_patterns('*.caffemodel'))
+        trainer.solver.net.save(os.path.join(dst_path_candidate,"final.caffemodel"), False)
     trainer.plot_statistics()
 
 
