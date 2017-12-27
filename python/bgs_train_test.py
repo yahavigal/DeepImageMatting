@@ -50,7 +50,7 @@ class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
-                 threshold = -1):
+                 threshold = -1,results_path=None):
 
         self.threhold_param = threshold
         if trimap_dir is not None:
@@ -86,7 +86,10 @@ class bgs_test_train:
         if snapshot_path != "":
             self.results_path = snapshot_path.replace(snapshot_path.split('/')[-1],"results")
         else:
-            self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
+            if results_path is not None and len(results_path) > 0:
+                self.results_path = results_path
+            else:
+                self.results_path = os.path.join(os.sep.join(solver_path.split('/')[0:-2]),"results")
 
 
         self.DSD_masks = None

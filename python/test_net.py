@@ -10,13 +10,14 @@ Created on Sun Aug 27 23:21:08 2017
 from bgs_train_test import *
 import argparse
 
-def test_net(images_dir_test, net_path,weights_path, trimap_dir,save_loss_per_image =False,finetune=None,is_save_fig =True,threshold = -1):
+def test_net(images_dir_test, net_path,weights_path, trimap_dir,save_loss_per_image =False,finetune=None,
+             is_save_fig =True,threshold = -1,results = ""):
     if finetune is None:
         train_list =""
     else:
         train_list = finetune
     trainer = bgs_test_train(images_dir_test, train_list, net_path,weights_path,"",trimap_dir = trimap_dir,
-                             save_loss_per_image=save_loss_per_image,threshold = threshold)
+                             save_loss_per_image=save_loss_per_image,threshold = threshold,results_path=results)
 
 
     var = trainer.test(is_save_fig=is_save_fig)
@@ -33,9 +34,11 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, required=True,help= "path tom model file")
     parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
     parser.add_argument('--finetune', type=str, required=False,default = None, help="fine tune list - usefull in case of TF migration" )
+    parser.add_argument('--results', type=str, required=False,default = "/home/or/results/", help="path to save results")
     args = parser.parse_args()
 
-    test_net(args.test_dir,args.net,args.model,args.trimap_dir,save_loss_per_image= False,finetune=args.finetune,threshold = args.threshold)
+    test_net(args.test_dir,args.net,args.model,args.trimap_dir,save_loss_per_image= False,
+             finetune=args.finetune,threshold = args.threshold,results=args.results)
 
 
 
