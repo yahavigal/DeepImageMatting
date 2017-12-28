@@ -73,8 +73,8 @@ class bgs_test_train:
             self.solver = None
             self.net = caffe.Net(solver_path, weights_path,caffe.TEST)
             check_threshold_param(solver_path,threshold)
-            img_width = self.net.blobs[self.solver.net.inputs[0]].shape[3]
-            img_height = self.net.blobs[self.solver.net.inputs[0]].shape[2]
+            img_width = self.net.blobs[self.net.inputs[0]].shape[3]
+            img_height = self.net.blobs[self.net.inputs[0]].shape[2]
 
         self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
                                           batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
