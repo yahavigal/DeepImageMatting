@@ -77,7 +77,7 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
             d_im_f = np.float32(d_im )
             d_im_n = (255.*(d_im_f/1800.))
             d_im_n = np.uint8(d_im_n)
-        elif algoType == 3:
+        elif algoType == 2:
             thresh0 = 0
             thresh1 = 1800
             d_im[ d_im > thresh1] = thresh1
