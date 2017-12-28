@@ -67,14 +67,18 @@ class bgs_test_train:
             sp = caffe_pb2.SolverParameter()
             text_format.Merge(open(solver_path).read(),sp)
             check_threshold_param(sp.net,threshold)
+            img_width = self.solver.net.blobs[self.solver.net.inputs[0]].shape[3]
+            img_height = self.solver.net.blobs[self.solver.net.inputs[0]].shape[2]
         else:
             self.solver = None
             self.net = caffe.Net(solver_path, weights_path,caffe.TEST)
             check_threshold_param(solver_path,threshold)
+            img_width = self.net.blobs[self.solver.net.inputs[0]].shape[3]
+            img_height = self.net.blobs[self.solver.net.inputs[0]].shape[2]
 
         self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
                                           batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
-                                          threshold_param= self.threhold_param)
+                                          threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
         self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
         self.exp_name += "_threshold_{}".format(self.threhold_param)
 
@@ -129,8 +133,6 @@ class bgs_test_train:
         net.blobs[net.inputs[0]].reshape(*images.shape)
         net.blobs[net.inputs[1]].reshape(*masks.shape)
         net.blobs[net.inputs[0]].data[...]= images
-        #if False: for future use
-        #    masks = np.insert(masks,1,1-masks[:,0,:],axis=1)
         net.blobs[net.inputs[1]].data[...]= masks
         self.solver.step(1)
 

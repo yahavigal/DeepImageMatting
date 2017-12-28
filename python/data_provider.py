@@ -16,7 +16,8 @@ def find_data_root_ind(image,trimap_root):
 
 class DataProvider :
     def __init__(self, images_dir_test, images_dir_train,trimap_dir=None, shuffle_data=True,
-                 batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1):
+                 batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1,
+                 img_width=128,img_height=128):
 
         self.gt_ext = "_silhuette"
         self.trimap_ext = None
@@ -65,8 +66,8 @@ class DataProvider :
 
 
 
-        self.img_width = 128
-        self.img_height = 128
+        self.img_width = img_width
+        self.img_height = img_height
         self.list_ind = 0
         self.test_list_ind = 0
         self.root_data_ind = None
