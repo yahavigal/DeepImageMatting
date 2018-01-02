@@ -24,6 +24,7 @@ from collections import defaultdict
 from data_provider import *
 from google.protobuf import text_format
 from caffe.proto import caffe_pb2
+import publish_utils
 import shutil
 
 current_milli_time = lambda: int(round(time.time() * 1000))
@@ -48,7 +49,7 @@ def check_threshold_param(net_file,threshold):
 
 class bgs_test_train:
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
-                 snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
+                 snapshot_path, batch_size=128, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
                  threshold = -1,results_path=None):
 
@@ -179,7 +180,7 @@ class bgs_test_train:
             net = self.net
 
         test_log_file = open(os.path.join(self.results_path,"test_log_file.txt"),"w")
-        test_log_file.write('image path ')
+        test_log_file.write('image_path ')
         for output in net.outputs:
             if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
@@ -201,10 +202,11 @@ class bgs_test_train:
         trimap_r = None
         self.data_provider.use_data_aug = False
 
-        for image in self.data_provider.images_list_test:
+        for _ in xrange(len(self.data_provider.images_list_test)):
             img_r,mask_r = self.data_provider.get_test_data()
             if img_r is None or mask_r is None:
                 continue
+            image = self.data_provider.test_image_path
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
             net.blobs[net.inputs[0]].data[...]= img_r
@@ -312,6 +314,8 @@ class bgs_test_train:
                     if self.threhold_param != -1:
                         mask_r[mask_r >= self.threhold_param] = 1
                         mask_r[mask_r < self.threhold_param] = 0
+                    else:
+                        mask_r/=255.0
                     mask_r = np.repeat(np.expand_dims(mask_r,axis=2),3,axis=2)
                     mask_r[:,:,1:] = 0
                     algo_res = Image.fromarray((mask_r*255).astype(np.uint8))
@@ -389,16 +393,7 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 
     trainer.test()
     if publish is not None:
-        dst_path = trainer.exp_name.replace(' ','_')
-        dst_path_candidate = dst_path + "_0"
-        dst_path_candidate = os.path.join(publish,dst_path_candidate)
-        while os.path.exists(dst_path_candidate):
-            exp_num = int(dst_path_candidate.split('_')[-1])
-            dst_path_candidate ='{}_{}'.format(dst_path,exp_num+1)
-            dst_path_candidate = os.path.join(publish,dst_path_candidate)
-        shutil.copytree(trainer.results_path,dst_path_candidate,
-                        ignore = shutil.ignore_patterns('*.caffemodel'))
-        trainer.solver.net.save(os.path.join(dst_path_candidate,"final.caffemodel"), False)
+        publish_utils.publish_results(publish,trainer)
     trainer.plot_statistics()
 
 

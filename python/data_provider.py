@@ -124,6 +124,8 @@ class DataProvider :
         if self.threshold_param != -1:
             mask[mask < 256*self.threshold_param] = 0
             mask[mask >= 256*self.threshold_param] = 1
+        else:
+            mask/=255.0
         self.mask_orig = mask
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         self.mask_resized = mask_r
@@ -142,6 +144,8 @@ class DataProvider :
                 return [None, None, None]
 
             trimap = cv2.imread(trimap_path, 0)
+            if trimap is None:
+                return [None, None, None]
             self.trimap_orig = trimap.copy()
             trimap_r = cv2.resize(trimap, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
 
@@ -180,7 +184,7 @@ class DataProvider :
             else:
                 img_r, mask_r, trimap_r = self.get_tuple_data_point(self.images_list_train[self.list_ind])
             if img_r is None or mask_r is None:
-                self.list_ind += 1
+                del self.images_list_train[self.list_ind]
                 continue
 
             if 'trimap_r' in locals():
@@ -204,7 +208,7 @@ class DataProvider :
             else:
                 img_r, mask_r, trimap_r = self.get_tuple_data_point(self.images_list_test[self.test_list_ind])
             if img_r is None or mask_r is None:
-                self.test_list_ind += 1
+                del self.images_list_test[self.test_list_ind]
                 continue
 
             if 'trimap_r' in locals():
