@@ -114,8 +114,8 @@ layer {
   type: "Convolution"
   bottom: "concat_3"
   top: "conv_4"
-	param { lr_mult: 1 decay_mult: 1 }
-	param { lr_mult: 2 decay_mult: 1 }
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 1 }
   convolution_param {
     num_output: 16
     kernel_size: 3
@@ -273,7 +273,7 @@ layer {
   type: "BatchNorm"
   bottom: "conv_feathering_1"
   top: "bn_1"
-  batch_norm_param { use_global_stats: false}
+  batch_norm_param { use_global_stats: true}
 }
 layer {
   name: "relu_feathering_1"
@@ -371,6 +371,13 @@ layer {
   bottom: "alpha_pred_s"
   bottom: "alpha_gt"
   top: "mask_absdiff"
+}
+layer {
+  name: "mask_gradient"
+  type: "MaskGradientAccuracy"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_gradient"
 }
 
  

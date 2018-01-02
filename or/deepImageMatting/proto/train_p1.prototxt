@@ -611,3 +611,10 @@ layer {
   bottom: "alpha_gt"
   top: "mask_absdiff"
 }
+layer {
+  name: "mask_gradient"
+  type: "MaskGradientAccuracy"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_gradient"
+}
