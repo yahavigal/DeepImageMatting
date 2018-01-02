@@ -332,14 +332,18 @@ class bgs_test_train:
 
                     plt.savefig(fig_path)
                     plt.close(fig)
+        with open(os.path.join(self.results_path,"summary.txt"),'w') as summary:
+            for output in net.outputs:
+                if output == 'alpha_pred' or output == 'alpha_pred_s':
+                    continue
+                str_test =  "{} average {} on test: {} ".format(self.exp_name,output,np.average(self.test_measures[output]))
+                str_train =  "{} average {} on train: {} ".format(self.exp_name,output,np.average(self.train_measures[output]))
+                print str_test
+                print str_train
+                summary.write(str_test + '\n')
+                summary.write(str_train + '\n')
 
-        for output in net.outputs:
-            if output == 'alpha_pred' or output == 'alpha_pred_s':
-                continue
-            print "{} average {} on test: {} ".format(self.exp_name,output,np.average(self.test_measures[output]))
-            print "{} average {} on train: {} ".format(self.exp_name,output,np.average(self.train_measures[output]))
-
-        print "{} average time for inference: {}".format(self.exp_name,np.average(times))
+            print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
         if self.use_tf_inference ==True:
             print "average iou on test in TF {}".format(np.average(avg_iou_tf))
@@ -354,7 +358,7 @@ class bgs_test_train:
 
 
     def plot_statistics(self):
-        fig = plt.figure()
+        fig = plt.figure(figsize=(20,10))
         fig.canvas.set_window_title(self.exp_name)
 
         if self.solver is not None:
@@ -377,7 +381,8 @@ class bgs_test_train:
             plt.xlabel('# iter')
             plt.ylabel('test {}'.format(output))
 
-        plt.show()
+        plt.savefig(os.path.join(self.results_path,'stats.fig.jpg'))
+        plt.show(block=False)
 
 def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,threshold,publish):
     snapshot_path = solver_path.replace("proto","snapshots",1)
@@ -392,9 +397,9 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     os.mkdir(trainer.results_path)
 
     trainer.test()
+    trainer.plot_statistics()
     if publish is not None:
         publish_utils.publish_results(publish,trainer)
-    trainer.plot_statistics()
 
 
 if __name__ == "__main__":
@@ -415,6 +420,7 @@ if __name__ == "__main__":
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
                  shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish)
+    raw_input()
 
 
 
