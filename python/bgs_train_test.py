@@ -336,8 +336,12 @@ class bgs_test_train:
             for output in net.outputs:
                 if output == 'alpha_pred' or output == 'alpha_pred_s':
                     continue
-                str_test =  "{} average {} on test: {} ".format(self.exp_name,output,np.average(self.test_measures[output]))
-                str_train =  "{} average {} on train: {} ".format(self.exp_name,output,np.average(self.train_measures[output]))
+                str_test =  "{} average {} on test: {} variance {}".format(self.exp_name,output,
+                                                                           np.average(self.test_measures[output]),
+                                                                           np.var(self.test_measures[output]))
+                str_train =  "{} average {} on train: {} variance {}".format(self.exp_name,output,
+                                                                             np.average(self.train_measures[output]),
+                                                                             np.var(self.train_measures[output]))
                 print str_test
                 print str_train
                 summary.write(str_test + '\n')
@@ -384,7 +388,8 @@ class bgs_test_train:
         plt.savefig(os.path.join(self.results_path,'stats.fig.jpg'))
         plt.show(block=False)
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,threshold,publish):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,
+                 threshold,publish,real):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
@@ -398,7 +403,15 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
 
     trainer.test()
     trainer.plot_statistics()
+    if real is not None:
+        trainer.data_provider.images_list_test = trainer.data_provider.create_list_from_file(real[0])
+        trainer.data_provider.trimap_dir = real[1]
+        trainer.results_path = os.path.join(trainer.results_path,"real_data")
+        os.mkdir(trainer.results_path)
+        trainer.test()
+        trainer.plot_statistics()
     if publish is not None:
+        trainer.results_path = trainer.results_path.replace("real_data","")
         publish_utils.publish_results(publish,trainer)
 
 
@@ -416,10 +429,12 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
     parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
     parser.add_argument('--publish', type=str,required=False, default = None, help= "copy results folder into a share drive")
+    parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
+                        help= "additional test on other (real) data in case of use trimap or depth you should also add it")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
-                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish)
+                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish,real =args.real)
     raw_input()
 
 

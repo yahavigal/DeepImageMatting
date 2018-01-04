@@ -15,6 +15,22 @@ def find_data_root_ind(image,trimap_root):
     return ind +1
 
 class DataProvider :
+
+    def create_list_from_file(self,input_file):
+        if os.path.isdir(input_file):
+            list_images = [os.path.join(input_file, x)
+                                      for x in os.listdir(input_file)
+                                      if x.endswith(".png") and x.find(self.gt_ext) == -1]
+        elif os.path.isfile(input_file):
+            images = open(input_file).readlines()
+            images = [x[0:-1] for x in images if x.endswith('\n')]
+            list_images = [x for x in images
+                                      if x.endswith(".png") and x.find(self.gt_ext) == -1
+                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)]
+        else:
+            list_images = None
+        return list_images
+
     def __init__(self, images_dir_test, images_dir_train,trimap_dir=None, shuffle_data=True,
                  batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1,
                  img_width=128,img_height=128):
@@ -34,36 +50,13 @@ class DataProvider :
         self.use_data_aug = use_data_aug
         self.threshold_param = threshold_param
 
-        if os.path.isdir(images_dir_train):
-            self.images_list_train = [os.path.join(images_dir_train, x)
-                                      for x in os.listdir(images_dir_train)
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        elif os.path.isfile(images_dir_train):
-            images = open(images_dir_train).readlines()
-            images = [x[0:-1] for x in images if x.endswith('\n')]
-            self.images_list_train = [x for x in images
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1
-                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)]
-        else:
-            self.images_list_train = None
-
-        if os.path.isdir(images_dir_test):
-            self.images_list_test = [os.path.join(images_dir_test, x)
-                                     for x in os.listdir(images_dir_test)
-                                     if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        elif os.path.isfile(images_dir_test):
-            images = open(images_dir_test).readlines()
-            images = [x[0:-1] for x in images if x.endswith('\n')]
-            self.images_list_test = [x for x in images
-                                     if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        else:
-            self.images_list_test = None
+        self.images_list_train = self.create_list_from_file(images_dir_train)
+        self.images_list_test = self.create_list_from_file(images_dir_test)
 
         self.trimap_dir = trimap_dir
 
         if self.images_list_train is not None and shuffle_data == True:
             random.shuffle(self.images_list_train)
-
 
 
         self.img_width = img_width

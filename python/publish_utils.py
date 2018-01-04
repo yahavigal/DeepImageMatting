@@ -28,8 +28,9 @@ def publish_emails(publish,dst_path):
     david = 'david.stanhill@intel.com'
     eyal = 'eyal.rond@intel.com'
     alexandra = 'alexandra.manevitch@intel.com'
+    tamir = 'tamir.einy@intel.com'
 
-    list_to_send = [alexandra,david,omer,eyal]
+    list_to_send = [alexandra,david,omer,eyal,tamir]
     msg['From'] = me
     msg['To'] = ', '.join(list_to_send)
 
