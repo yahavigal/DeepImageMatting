@@ -145,10 +145,13 @@ class DataProvider :
             if self.use_data_aug == True:
                 # rotation / filipping data augmentation
                 coin = np.random.uniform(0, 1, 1)
-                if coin <= 0.33:
-                    img_r, mask_r, trimap_r = data_augmentation.horizontal_flipping(img_r, mask_r, trimap_r)
-                elif coin <= 0.66:
-                    img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
+                if '80cm' in image_path and coin <= 0.7:
+                    img_r, mask_r, trimap_r = data_augmentation.translate(img_r, mask_r, trimap_r)
+                else:
+                    if coin <= 0.33:
+                        img_r, mask_r, trimap_r = data_augmentation.horizontal_flipping(img_r, mask_r, trimap_r)
+                    elif coin <= 0.66:
+                        img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
 
             trimap_r = trimap_r.reshape([1, self.img_height, self.img_width])
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])

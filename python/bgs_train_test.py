@@ -185,6 +185,7 @@ class bgs_test_train:
             if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             test_log_file.write(" {}".format(output))
+            self.test_measures[output] = []
         test_log_file.write('\n')
         diff_caffe_tf = []
         times = []
@@ -406,6 +407,8 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     if real is not None:
         trainer.data_provider.images_list_test = trainer.data_provider.create_list_from_file(real[0])
         trainer.data_provider.trimap_dir = real[1]
+        trainer.data_provider.test_list_ind = 0
+        trainer.data_provider.root_data_ind = None
         trainer.results_path = os.path.join(trainer.results_path,"real_data")
         os.mkdir(trainer.results_path)
         trainer.test()

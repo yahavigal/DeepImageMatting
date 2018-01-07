@@ -38,7 +38,7 @@ def random_dilate_tri_map(trimap):
 
 #as propose in alex net paper
 def PCA_noise(image):
-    
+
     A = image.reshape([image.shape[0]*image.shape[1],3])
     cov_mat = A.T.dot(A)
     eigen_values, eigen_vectors = np.linalg.eig(cov_mat)
@@ -46,7 +46,7 @@ def PCA_noise(image):
     noise = np.random.normal(0,0.0002,3).reshape((1,3))
     value_to_add = eigen_vectors.dot((noise*eigen_values).T)
     return np.add(image.astype('float32'),value_to_add.T)
-    
+
 #as proposed in Deep Automatic Protrait Matting
 def rotate(image, gt, trimap = None):
     angel = rotaion_angels[randint(0,len(rotaion_angels)-1)]
@@ -61,15 +61,38 @@ def rotate(image, gt, trimap = None):
     else:
         return [rotated_image,rotated_gt]
 
+def translate(image, gt,trimap = None):
+    rows,cols = image.shape[0:2]
+    translation_x =  randint(int(0.1*cols),int(0.2*cols))
+    coin = randint(0,1)
+    if coin == 0:
+        translation_x = -translation_x
+    M = np.float32([[1,0,translation_x],[0,1,0]])
+    translated_image = cv2.warpAffine(image,M,(cols,rows))
+    if coin == 0:
+        translated_image[:,translation_x:cols-1] = image[:,translation_x:cols-1]
+    else:
+        translated_image[:,0:translation_x] = image[:,0:translation_x]
+    translated_gt = cv2.warpAffine(gt,M,(cols,rows))
+    if trimap is not None:
+        translated_trimap = cv2.warpAffine(trimap, M, (cols,rows))
+        if coin == 0:
+            translated_trimap[:,translation_x:cols-1] = 128
+        else:
+            translated_trimap[:,0:translation_x] = 128
+        return [translated_image,translated_gt,translated_trimap]
+    else:
+        return [translated_image,translated_gt]
+
 #as proposed in Deep Automatic Protrait Matting
 def gamma_correction(image):
-    
+
     gamma = gamma_coeff[randint(0,len(gamma_coeff)-1)]
     # build a lookup table mapping the pixel values [0, 255]
     # their adjusted gamma values
     invGamma = 1.0 / gamma
     table = np.array([((i / 255.0) ** invGamma) * 255
 		for i in np.arange(0, 256)]).astype("uint8")
- 
+
     # apply gamma correction using the lookup table
     return cv2.LUT(image.astype(np.uint8), table).astype(np.float32)
