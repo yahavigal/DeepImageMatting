@@ -32,9 +32,18 @@ def horizontal_flipping(image, gt, trimap = None):
                 cv2.flip(gt, flipCode = 1),
                 cv2.flip(trimap,flipCode = 1)]
 
-#need to figure out
+#as proposed in deep image matting
 def random_dilate_tri_map(trimap):
-    pass
+    rows,cols = trimap.shape[0:2]
+    morph_rate =  randint(int(0.05*cols),int(0.1*cols))
+    kernel = np.ones((morph_rate,morph_rate),np.uint8)
+    coin = randint(0,1)
+    if coin == 0:
+        morphed_trimap = cv2.erode(trimap,kernel,iterations = 1)
+    else:
+        morphed_trimap = cv2.dilate(trimap,kernel,iterations = 1)
+    return morphed_trimap
+
 
 #as propose in alex net paper
 def PCA_noise(image):

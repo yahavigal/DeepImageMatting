@@ -235,8 +235,6 @@ class bgs_test_train:
                 loss_per_image[self.test_measures['loss'][-1]] = image
 
             if is_save_fig == True:
-                fig,ax = plt.subplots(1)
-                ax.axis('off')
                 image_orig = self.data_provider.img_orig
                 gt_mask = self.data_provider.mask_orig
                 mask = net.blobs['alpha_pred_s'].data
@@ -263,12 +261,10 @@ class bgs_test_train:
                 last_sep = [m.start() for m in re.finditer(r'{}'.format(os.sep),image)][self.data_provider.root_data_ind-1]
                 split = os.path.splitext(image[last_sep:].replace(os.sep,"_"))[0]
                 iou = int(100*self.test_measures['mask_accuracy'][-1])
-                ax.imshow(mattImage)
-                fig_path = split+"_iou_{}.fig.jpg".format(iou)
+                #ax.imshow(mattImage)
+                fig_path = split+"_iou_{}.jpg".format(iou)
                 fig_path = os.path.join(self.results_path,fig_path)
-                plt.savefig(fig_path)
-
-                plt.close(fig)
+                Image.fromarray((mattImage*255).astype(np.uint8)).save(fig_path)
 
                 mask_path = split +"_iou_{}.mask.png".format(iou)
                 mask_path = os.path.join(self.results_path,mask_path)
@@ -316,7 +312,7 @@ class bgs_test_train:
                         mask_r[mask_r >= self.threhold_param] = 1
                         mask_r[mask_r < self.threhold_param] = 0
                     else:
-                        mask_r/=255.0
+                        mask_r= np.divide(mask_r,255.0)
                     mask_r = np.repeat(np.expand_dims(mask_r,axis=2),3,axis=2)
                     mask_r[:,:,1:] = 0
                     algo_res = Image.fromarray((mask_r*255).astype(np.uint8))
