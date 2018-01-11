@@ -118,7 +118,7 @@ class DataProvider :
             mask[mask < 256*self.threshold_param] = 0
             mask[mask >= 256*self.threshold_param] = 1
         else:
-            mask/=255.0
+            mask = np.divide(mask,255.0)
         self.mask_orig = mask
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         self.mask_resized = mask_r
