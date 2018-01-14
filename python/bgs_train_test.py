@@ -299,7 +299,7 @@ class bgs_test_train:
                     plt.axis('off')
                     plt.title("GT input")
                     gt_mask*=255
-                    gt_mask = np.repeat(np.expand_dims(gt_mask,axis=2),3,axis=2)
+                    gt_mask = np.repeat(np.expand_dims((gt_mask*255).astype(np.uint8),axis=2),3,axis=2)
                     gt_mask[:,:,1:] = 0
                     gt_input = Image.fromarray(gt_mask)
                     gt_blend = Image.blend(gt_input,image_Image,0.8)
@@ -308,11 +308,6 @@ class bgs_test_train:
                     plt.subplot(2,2,3)
                     plt.axis('off')
                     plt.title("algo results")
-                    if self.threhold_param != -1:
-                        mask_r[mask_r >= self.threhold_param] = 1
-                        mask_r[mask_r < self.threhold_param] = 0
-                    else:
-                        mask_r= np.divide(mask_r,255.0)
                     mask_r = np.repeat(np.expand_dims(mask_r,axis=2),3,axis=2)
                     mask_r[:,:,1:] = 0
                     algo_res = Image.fromarray((mask_r*255).astype(np.uint8))
