@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,9 +43,16 @@ def calc_connectivity_metric(mask):
 
 
 #example of 2 images were on one of my machines
-mask = cv2.imread('/home/or/caffe-win/or/fastPortraitMatting/results/_28_9_2017_W11411295_40cm_53_b0_53n0_81m0_04_Dumps_20_color_iou_96.mask.png',0)
-mask = np.divide(mask,255.0)
-gt = cv2.imread('/home/or/share/cc_067_no_shifts/DataSet_2_composed/28_9_2017/W11411295/40cm/53_b0_53n0_81m0_04/Dumps/20_color_silhuette.png',0)
-gt = np.divide(gt,255.0)
-print np.abs(calc_connectivity_metric(gt) - calc_connectivity_metric(mask))
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--res', type=str, required=True)
+    parser.add_argument('--gt', type=str, required=True)
+    args = parser.parse_args()
+
+    mask = cv2.imread(args.res,0)
+    mask = np.divide(mask,255.0)
+    gt = cv2.imread(args.gt,0)
+    gt = np.divide(gt,255.0)
+    print np.abs(calc_connectivity_metric(gt) - calc_connectivity_metric(mask))
 
