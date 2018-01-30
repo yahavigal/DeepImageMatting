@@ -1,10 +1,11 @@
 % script to run runHolesFillingOnDir
 % path 2 the main directory where clor,gt and depth are
-path2data = '/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed';
-mainDirName = 'DataSet_2_composed';
+path2data = '/media/or/Data/deepImageMatting/Set1_07_2017';
+mainDirName = 'Set1_07_2017';
 % path to depth after holes filling
-d_outName = 'depth_filled';
+d_outName = 'Set1_07_2017_depth_filled';
 % path to normalized low resolution depth after holes filling
-dn_outName = 'depth_norm_v3';
+dn_lr_outName = 'Set1_07_2017_depth_norm_v3_lr';
+dn_fr_outName = 'Set1_07_2017_depth_norm_v3';
 
-runHolesFillingOnDir ( path2data, mainDirName, d_outName, dn_outName);
+runHolesFillingOnDir ( path2data, mainDirName, d_outName, dn_lr_outName, dn_fr_outName);

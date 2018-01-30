@@ -1,4 +1,4 @@
-function [depth_out_lr, depth_out] = fillHolesAndNormalizeDepth( depth)
+function [depth_out_lr, depth_out, depth_norm] = fillHolesAndNormalizeDepth( depth)
 % fill holes and depth and normalize
 %   Detailed explanation goes here
 resizeFactor = 0.25;
@@ -82,6 +82,13 @@ depth_out_lr( depth_out_lr < 0) = 0;
 depth_out_lr_f = double(depth_out_lr );
 depth_out_lr_n = (depth_out_lr_f./1800.)*255;
 depth_out_lr = uint8(depth_out_lr_n);
+
+depth_norm = depth_out;
+depth_norm( depth_norm > 1800) = 1800;
+depth_norm( depth_norm < 0) = 0;
+depth_norm_f = double(depth_norm );
+depth_norm_n = (depth_norm_f./1800.)*255;
+depth_norm = uint8(depth_norm_n);
 
 % figure; imagesc(depth_out_lr);
 end
