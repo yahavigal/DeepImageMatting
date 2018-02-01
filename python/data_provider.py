@@ -14,7 +14,7 @@ def find_data_root_ind(image,trimap_root):
         ind +=1
     return ind +1
 
-class DataProvider :
+class DataProvider(object) :
 
     def create_list_from_file(self,input_file):
         if os.path.isdir(input_file):
@@ -26,7 +26,8 @@ class DataProvider :
             images = [x[0:-1] for x in images if x.endswith('\n')]
             list_images = [x for x in images
                                       if x.endswith(".png") and x.find(self.gt_ext) == -1
-                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)]
+                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)
+                                      or os.path.isdir(x)]
         else:
             list_images = None
         return list_images
@@ -67,17 +68,21 @@ class DataProvider :
         self.epoch_ind = 0
         self.iter_ind = 0
 
-        self.img_orig = None
-        self.trimap_orig = None
-        self.mask_orig = None
+        self.img_orig = []
+        self.trimap_orig = []
+        self.mask_orig = []
 
-        self.img_resized = None
+        self.img_resized = []
         self.trimap_resized = None
-        self.mask_resized = None
+        self.mask_resized = []
+
+        self.images_path_in_batch = []
 
         self.img_transposed = None
         self.trimap_transposed = None
         self.mask_transposed = None
+
+        self.is_test_phaze = False
 
     def get_tuple_data_point(self, image_path):
 
@@ -88,7 +93,7 @@ class DataProvider :
                 return [None, None, None]
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype('float32')
-        self.img_orig = img.copy()
+        self.img_orig.append(img.copy())
 
         if self.use_data_aug == True:
 
@@ -105,10 +110,12 @@ class DataProvider :
 
         img -= np.array([104, 117, 123], dtype=np.float32)
         img_r = cv2.resize(img, (self.img_width, self.img_height))
-        self.img_resized = img_r
+        self.img_resized.append(img_r)
         path = os.path.splitext(image_path)
         gt_path = path[0] + self.gt_ext + path[1]
         if not os.path.isfile(gt_path):
+            del self.img_resized[-1]
+            del self.img_orig[-1]
             if self.trimap_dir == None:
                 return [None, None]
             else:
@@ -119,9 +126,9 @@ class DataProvider :
             mask[mask >= 256*self.threshold_param] = 1
         else:
             mask = np.divide(mask,255.0)
-        self.mask_orig = mask
+        self.mask_orig.append(mask.copy())
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
-        self.mask_resized = mask_r
+        self.mask_resized.append(mask_r)
         if self.root_data_ind is None:
             self.root_data_ind = find_data_root_ind(image_path, self.trimap_dir)
         split = image_path.split(os.sep)[self.root_data_ind:]
@@ -134,12 +141,20 @@ class DataProvider :
                                        split[0], frame_num + self.trimap_ext + ".png")
 
             if not os.path.isfile(trimap_path):
+                del self.img_resized[-1]
+                del self.img_orig[-1]
+                del self.mask_resized[-1]
+                del self.mask_orig[-1]
                 return [None, None, None]
 
             trimap = cv2.imread(trimap_path, 0)
             if trimap is None:
+                del self.img_resized[-1]
+                del self.img_orig[-1]
+                del self.mask_resized[-1]
+                del self.mask_orig[-1]
                 return [None, None, None]
-            self.trimap_orig = trimap.copy()
+            self.trimap_orig.append(trimap.copy())
             trimap_r = cv2.resize(trimap, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
 
             if self.use_data_aug == True:
@@ -153,6 +168,7 @@ class DataProvider :
                     elif coin <= 0.66:
                         img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
 
+            self.images_path_in_batch.append(image_path)
             trimap_r = trimap_r.reshape([1, self.img_height, self.img_width])
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])
             img_r = img_r.transpose([2, 0, 1])
@@ -162,25 +178,35 @@ class DataProvider :
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])
             img_r = img_r.transpose([2, 0, 1])
             return img_r, mask_r
+    def switch_to_test(self):
+        self.list_ind = 0
+        self.is_test_phaze = True
 
-    def get_batch_data(self, batch_size=None):
+    def get_batch(self,list_,batch_size = None):
         if batch_size is None:
             batch_size = self.batch_size
         batch = []
         masks = []
+        self.img_orig =[]
+        self.img_resized=[]
+        self.mask_orig =[]
+        self.mask_resized =[]
+        self.trimap_orig =[]
+        self.images_path_in_batch = []
         while len(batch) < batch_size:
-            if self.list_ind >= len(self.images_list_train):
+            if self.list_ind >= len(list_):
                 print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
                 if self.shuffle == True:
-                    random.shuffle(self.images_list_train)
+                    random.shuffle(list_)
                 self.epoch_ind += 1
                 self.list_ind = 0
+
             if self.trimap_dir == None:
-                img_r, mask_r = self.get_tuple_data_point(self.images_list_train[self.list_ind])
+                img_r, mask_r = self.get_tuple_data_point(list_[self.list_ind])
             else:
-                img_r, mask_r, trimap_r = self.get_tuple_data_point(self.images_list_train[self.list_ind])
+                img_r, mask_r, trimap_r = self.get_tuple_data_point(list_[self.list_ind])
             if img_r is None or mask_r is None:
-                del self.images_list_train[self.list_ind]
+                del list_[self.list_ind]
                 continue
 
             if 'trimap_r' in locals():
@@ -192,30 +218,11 @@ class DataProvider :
 
         return np.array(batch), np.array(masks)
 
+    def get_batch_data(self, batch_size=None):
+        return self.get_batch(self.images_list_train)
 
     def get_test_data(self,batch_size = 1):
-        batch = []
-        masks = []
-        while len(batch) < batch_size:
-            if self.test_list_ind >= len(self.images_list_test):
-              return None,None
-            if self.trimap_dir == None:
-                img_r, mask_r = self.get_tuple_data_point(self.images_list_test[self.test_list_ind])
-            else:
-                img_r, mask_r, trimap_r = self.get_tuple_data_point(self.images_list_test[self.test_list_ind])
-            if img_r is None or mask_r is None:
-                del self.images_list_test[self.test_list_ind]
-                continue
-
-            if 'trimap_r' in locals():
-                img_r = np.concatenate((img_r, trimap_r), axis=0)
-            self.test_image_path = self.images_list_test[self.test_list_ind]
-            batch.append(img_r)
-            masks.append(mask_r)
-            self.test_list_ind += 1
-
-        return np.array(batch), np.array(masks)
-
+        return self.get_batch(self.images_list_test,batch_size)
 
 
 
