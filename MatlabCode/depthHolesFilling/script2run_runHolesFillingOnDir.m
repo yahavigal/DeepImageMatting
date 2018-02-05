@@ -8,4 +8,4 @@ d_outName = 'Set1_07_2017_depth_filled';
 dn_lr_outName = 'Set1_07_2017_depth_norm_v3_lr';
 dn_fr_outName = 'Set1_07_2017_depth_norm_v3';
 
-runHolesFillingOnDir ( path2data, mainDirName, d_outName, dn_lr_outName, dn_fr_outName);
+et = runHolesFillingOnDir ( path2data, mainDirName, d_outName, dn_lr_outName, dn_fr_outName);
