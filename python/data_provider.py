@@ -181,6 +181,8 @@ class DataProvider(object) :
     def switch_to_test(self):
         self.list_ind = 0
         self.is_test_phaze = True
+        self.epoch_ind = 0
+        self.use_data_aug = False
 
     def get_batch(self,list_,batch_size = None):
         if batch_size is None:
@@ -195,11 +197,14 @@ class DataProvider(object) :
         self.images_path_in_batch = []
         while len(batch) < batch_size:
             if self.list_ind >= len(list_):
-                print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
-                if self.shuffle == True:
-                    random.shuffle(list_)
                 self.epoch_ind += 1
                 self.list_ind = 0
+                if self.is_test_phaze == True:
+                    return batch, masks
+                else:
+                    print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
+                    if self.shuffle == True:
+                        random.shuffle(list_)
 
             if self.trimap_dir == None:
                 img_r, mask_r = self.get_tuple_data_point(list_[self.list_ind])

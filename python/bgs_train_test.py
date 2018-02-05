@@ -216,11 +216,10 @@ class bgs_test_train:
 
         #no data augmentation in test
         trimap_r = None
-        self.data_provider.use_data_aug = False
 
-        for _ in xrange(len(self.data_provider.images_list_test)):
+        while self.data_provider.epoch_ind == 0:
             img_r,mask_r = self.data_provider.get_test_data()
-            if img_r is None or mask_r is None:
+            if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
                 continue
             net.blobs[net.inputs[0]].reshape(*img_r.shape)
             net.blobs[net.inputs[1]].reshape(*mask_r.shape)
@@ -330,7 +329,6 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     os.mkdir(trainer.results_path)
 
     trainer.data_provider.switch_to_test()
-    ipdb.set_trace()
     trainer.test()
     trainer.plot_statistics()
     if real is not None:
