@@ -40,12 +40,11 @@ class TemporalDataProvider(DataProvider) :
     def get_batch_data(self):
         return self.get_batch(self.images_list_train, self.batch_size)
 
-    def get_test_data(self):
-        return self.get_batch(self.images_list_test, self.batch_size)
+    def get_test_data(self, batch_size = 1):
+        return self.get_batch(self.images_list_test, batch_size)
 
     def switch_to_test(self):
-        self.is_test_phaze = True
-        self.list_ind = 0
+        super(TemporalDataProvider, self).switch_to_test()
         self.iter_ind = 0
         self.get_current_clip_list(self.images_list_test,self.list_ind)
 
@@ -69,9 +68,13 @@ class TemporalDataProvider(DataProvider) :
                 batch = []
                 self.list_ind += 1
                 if self.list_ind >= len(list_):
-                    print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
                     self.epoch_ind += 1
                     self.list_ind = 0
+                    if self.is_test_phaze ==True:
+                        return batch, masks
+                    else:
+                        print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
+
                 else:
                     print 'in clip {} from {}'.format(self.list_ind,len(list_))
                 self.get_current_clip_list(list_,self.list_ind)
@@ -103,5 +106,5 @@ class TemporalDataProvider(DataProvider) :
             batch.append(img_r)
             masks.append(mask_r)
             self.current_clip_ind += 1
-        self.current_clip_ind -= (self.batch_size -1)
+        self.current_clip_ind -= (batch_size -1)
         return np.array(batch), np.array(masks)
