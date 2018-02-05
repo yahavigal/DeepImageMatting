@@ -7,9 +7,11 @@ depth2proc = imresize(depth, resizeFactor, 'nearest');
 d_m = medfilt2(depth2proc);
 d_tmp = d_m;
 d_tmp = interpolateLineAtEdges( d_tmp);
-d_tmp(d_tmp == 0) = 10000;
-minVal = min(d_tmp(:));
-d_tmp (d_tmp > (minVal + 900) ) = 0;
+if 1
+    d_tmp(d_tmp == 0) = 10000;
+    minVal = min(d_tmp(:));
+    d_tmp (d_tmp > (minVal + 900) ) = 0;
+end
 % d_tmp = medfilt2(d_tmp);
 
 [B,L,N,A] = bwboundaries(d_tmp);
@@ -53,14 +55,27 @@ for i1 = N +1 : length(B)
         vt(vt==0) = [];
         averVal = mean(vt);
         % stdVal = std(double(vt));
-        
+if 0        
         tmp = croi;
         tmp = medfilt2(tmp, [5,5]);
+end
+
+if 1 
+       tmp = d_m(indYstart :indYend, indXstart : indXend);
+end
+        
+if 0
+        tmp = depth2proc(indYstart :indYend, indXstart : indXend);        
+%         cc_sub(:,1) = cc(:,1) - indYstart;
+%         cc_sub(:,2) = cc(:,2) - indXstart;
+%         [ n, m] = size(tmp);
+%         BW = poly2mask(cc_sub(:,2),cc_sub(:,1),m,n);
+end
         
         maxVal_loc = 0.95* max(tmp(:));        
         tmp(tmp == 0) = maxVal_loc;
         minVal_loc = 1.05*min(tmp(:));
-        if maxVal_loc-minVal_loc > 200 + 0.1*averVal;
+        if maxVal_loc-minVal_loc > 200 + 0.1*averVal
             continue;
         end
     end
@@ -74,7 +89,16 @@ for i1 = N +1 : length(B)
     %figure; imagesc(d_tmp)
 end
 
-depth_out_lr = max(d_m, d_tmp);
+% depth_out_lr = max(d_m, d_tmp);
+depth_out_lr = d_m;
+for y = 1 : h
+    for x = 1 :w
+        if depth_out_lr(y,x) == 0
+            depth_out_lr(y,x) = d_tmp(y,x);
+        end
+            
+    end
+end
 depth_out = imresize(depth_out_lr, 1/ resizeFactor, 'nearest');
 
 depth_out_lr( depth_out_lr > 1800) = 1800;

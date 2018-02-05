@@ -2,10 +2,10 @@ clear
 clc
 close all
 
-path2data = '\\ger\ec\proj\ha\perc\BGS_data\Alexandra\forDepthFilling\set1\main\w11525774\sitting';
+path2data = 'B:\Alexandra\forDepthFilling\set1\main\w11525774\sitting';
 
-isSave = 1; 
-subdirName = 'depth_norm_v3';
+isSave = 0; 
+subdirName = 'depth_norm_v3_2';
 dir2save = replace(path2data,'main',subdirName);
 
 if isSave
@@ -15,7 +15,7 @@ end
 d = dir( fullfile( path2data, '*depth.png' ));
 numImgs = numel(d);
 e = 0;
-for j1 = 66 : numImgs
+for j1 = 77 : numImgs
     [j1 numImgs]
     depth = imread( fullfile( path2data, d(j1).name) );
     t = cputime;
