@@ -30,6 +30,12 @@ import TF_utils
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 
+def get_net_path(solver_path):
+    sp = caffe_pb2.SolverParameter()
+    text_format.Merge(open(solver_path).read(),sp)
+    return sp.net.encode('ascii','ignore')
+
+
 def check_threshold_param(net_file,threshold):
     if threshold == -1:
         return
@@ -74,6 +80,7 @@ class bgs_test_train:
             check_threshold_param(sp.net,threshold)
             img_width = self.solver.net.blobs[self.solver.net.inputs[0]].shape[3]
             img_height = self.solver.net.blobs[self.solver.net.inputs[0]].shape[2]
+            self.solver_path = solver_path
         else:
             self.solver = None
             self.net = caffe.Net(solver_path, weights_path,caffe.TEST)
@@ -91,6 +98,8 @@ class bgs_test_train:
 
         self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
         self.exp_name += "_threshold_{}".format(self.threhold_param)
+        if temporal == True and self.data_provider.insert_prev_data == True:
+            self.exp_name+='_temporal'
 
         if weights_path != None and weights_path != "" and os.path.isfile(weights_path):
             if self.solver is not None:
@@ -281,6 +290,10 @@ class bgs_test_train:
             print "average iou on test in TF {}".format(np.average(avg_iou_tf))
 
         test_log_file.close()
+        if self.solver_path is not None:
+            shutil.copyfile(get_net_path(self.solver_path),os.path.join(self.results_path,'net.prototxt'))
+            shutil.copyfile(self.solver_path,os.path.join(self.results_path,'slover.prototxt'))
+
 
         if self.save_test_by_loss == True:
             return loss_per_image
@@ -334,8 +347,7 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     if real is not None:
         trainer.data_provider.images_list_test = trainer.data_provider.create_list_from_file(real[0])
         trainer.data_provider.trimap_dir = real[1]
-        trainer.data_provider.test_list_ind = 0
-        trainer.data_provider.root_data_ind = None
+        trainer.data_provider.switch_to_test()
         trainer.results_path = os.path.join(trainer.results_path,"real_data")
         os.mkdir(trainer.results_path)
         trainer.test()
