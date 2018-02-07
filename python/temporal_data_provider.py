@@ -23,6 +23,7 @@ class TemporalDataProvider(DataProvider) :
         self.clip_length = int(self.batch_size * 1.5)
         self.defects_list = defaultdict(int)
         self.get_current_clip_list(self.images_list_train,0)
+        self.insert_prev_data = True
 
     def get_current_clip_list(self,list_, ind):
         print 'starting {}'.format(list_[ind])
@@ -40,7 +41,7 @@ class TemporalDataProvider(DataProvider) :
     def get_batch_data(self):
         return self.get_batch(self.images_list_train, self.batch_size)
 
-    def get_test_data(self, batch_size = 1):
+    def get_test_data(self, batch_size = 2):
         return self.get_batch(self.images_list_test, batch_size)
 
     def switch_to_test(self):
@@ -95,13 +96,13 @@ class TemporalDataProvider(DataProvider) :
 
             if 'trimap_r' in locals():
                 img_r = np.concatenate((img_r, trimap_r), axis=0)
-
-            if self.iter_ind != 0 and new_clip_started == False:
-                #print 'last masks has been injected'
-                img_r = np.insert(img_r,img_r.shape[0],self.last_masks[len(batch)-1,0,:],axis=0)
-            else:
-                #print 'zeros has been injected'
-                img_r = np.insert(img_r,img_r.shape[0],np.zeros((self.img_height,self.img_width),dtype=np.float32),axis=0)
+            if self.insert_prev_data == True:
+                if self.iter_ind != 0 and new_clip_started == False:
+                    #print 'last masks has been injected'
+                    img_r = np.insert(img_r,img_r.shape[0],self.last_masks[len(batch)-1,0,:],axis=0)
+                else:
+                    #print 'zeros has been injected'
+                    img_r = np.insert(img_r,img_r.shape[0],np.zeros((self.img_height,self.img_width),dtype=np.float32),axis=0)
 
             batch.append(img_r)
             masks.append(mask_r)
