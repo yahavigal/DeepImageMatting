@@ -49,7 +49,7 @@ if __name__ == '__main__':
    parser = argparse.ArgumentParser()
    parser.add_argument('--proto', type=str, required=True, help= 'path to net definition file')
    parser.add_argument('--model', type=str, required=True, help= 'path to weights file')
-   parser.add_argument('--save', type='store_true', required=False, help= 'optional: save kernels histograms')
+   parser.add_argument('--save', action='store_true', help= 'optional: save kernels histograms')
    args = parser.parse_args()
    show_mean_channels(args.proto,args.model,args.save)
 
