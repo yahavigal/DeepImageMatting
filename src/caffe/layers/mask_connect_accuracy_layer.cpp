@@ -2,7 +2,21 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-
+int find_largst_cc(const cv::Mat& cc_stat)
+{
+    int max_area = int(0);
+    int max_area_ind = 0;
+    for (int i=1; i<cc_stat.rows;i++)
+    {
+        auto area = cc_stat.ptr<int>(i)[cv::CC_STAT_AREA];
+        if (area > max_area)
+        {
+            max_area = area;
+            max_area_ind = i;
+        }
+    }
+    return max_area_ind;
+}
 namespace caffe 
 {
     template <typename Dtype>
@@ -18,12 +32,12 @@ namespace caffe
         cv::Mat mask_thresh = mask >= 0.9;
         cv::Mat mask_thresh_int = mask_thresh*255;
         mask_thresh_int.convertTo(mask_thresh_int,CV_8UC1);
-        cv::Mat cc_top,dt;
-        auto num_cc_top = cv::connectedComponents(mask_thresh_int,cc_top);
-        cv::distanceTransform(cc_top!=1, dt, cv::DIST_L2, cv::DIST_MASK_PRECISE);
-        double min,max;
-        cv::minMaxLoc(dt,&min,&max);
-        dt/=max;
+        cv::Mat cc_top,dt,cc_top_stats,centeroids;
+        auto num_cc_top = cv::connectedComponentsWithStats(mask_thresh_int,cc_top,cc_top_stats,centeroids,4);
+        int largest_cc_top = find_largst_cc(cc_top_stats);
+        cv::distanceTransform(cc_top!=largest_cc_top, dt, cv::DIST_L2, cv::DIST_MASK_PRECISE);
+        auto norm_factor =  std::sqrt(mask.cols*mask.cols + mask.rows*mask.rows); 
+        dt/=norm_factor;
         //cv::imshow("dt",dt);
         //cv::waitKey();
         cv::Mat max_penalty = cv::Mat::zeros(mask.rows, mask.cols,CV_32FC1);
@@ -33,26 +47,28 @@ namespace caffe
             cv::Mat current_thresh_mask = mask >= current_thresh;
             cv::Mat current_thresh_int = mask_thresh*255;
             current_thresh_int.convertTo(current_thresh_int,CV_8UC1);
-            cv::Mat current_cc_res;
-            auto current_num_cc = cv::connectedComponents(current_thresh_int,current_cc_res);
+            cv::Mat current_cc_res,current_cc_stats;
+            auto current_num_cc = cv::connectedComponentsWithStats(current_thresh_int,current_cc_res,current_cc_stats,centeroids,4);
             if (current_num_cc == num_cc_top)
                 continue;
-            cv::Mat current_d = mask - (current_thresh - quantization);
+            cv::Mat current_d = mask - (current_thresh + Dtype(0.5)*quantization);
             //cv::waitKey();
-            current_d.setTo(0,current_cc_res == 1);
+            int current_largest_cc = find_largst_cc(current_cc_stats);
+            current_d.setTo(0,current_cc_res == current_largest_cc);
             current_d.setTo(0,current_cc_res == 0);
             current_d.setTo(0,current_cc_res < theta);
 
             //cv::imshow("current d",current_d);
             cv::Mat mutipication;
             cv::multiply(current_d,dt,mutipication);
-            cv::Mat current_conncet = 1 - mutipication;
-            cv::max(current_conncet,max_penalty,max_penalty);
+            //cv::Mat current_conncet =  mutipication;
+            cv::max(mutipication,max_penalty,max_penalty);
         }
         
-        auto res = cv::mean(cv::abs(max_penalty))[0];
+        auto res = cv::sum(max_penalty)[0]/
+                   (mask.rows*mask.cols - cc_top_stats.ptr<int>(largest_cc_top)[cv::CC_STAT_AREA]);
         std::cout<<res<<"\n";
-        return res > 0.0 ? res : Dtype(1);
+        return res > 0.0 ? res : Dtype(0);
     }
     
     template <typename Dtype>
