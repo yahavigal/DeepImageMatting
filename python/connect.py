@@ -98,7 +98,11 @@ def calc_connectivity_mask(mask):
     #numPixsInBlobs = np.sum(blobs)    
     #connectivity_measure_1 = np.sum(np.abs(max_penalty))/numPixsInBlobs
 
-    connectivity_measure = np.sum(np.abs(max_penalty))/(mask.shape[0]*mask.shape[1] - max_cc_area_main)
+    # normalization to free space
+    # connectivity_measure = np.sum(np.abs(max_penalty))/(mask.shape[0]*mask.shape[1] - max_cc_area_main)
+
+    # normalization to main blob area
+    connectivity_measure = np.sum(np.abs(max_penalty))/(max_cc_area_main)
 
     return connectivity_measure  # np.array([connectivity_measure,connectivity_measure_1,connectivity_measure_2] )
 
