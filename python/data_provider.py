@@ -183,6 +183,7 @@ class DataProvider(object) :
         self.is_test_phaze = True
         self.epoch_ind = 0
         self.use_data_aug = False
+        self.root_data_ind = None
 
     def get_batch(self,list_,batch_size = None):
         if batch_size is None:
