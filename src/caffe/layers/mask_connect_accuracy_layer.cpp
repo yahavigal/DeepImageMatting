@@ -29,9 +29,7 @@ namespace caffe
     {
         float theta = 0.15;
         float quantization = 0.1;
-        cv::Mat mask_thresh = mask >= 0.9;
-        cv::Mat mask_thresh_int = mask_thresh*255;
-        mask_thresh_int.convertTo(mask_thresh_int,CV_8UC1);
+        cv::Mat mask_thresh_int = mask >= 0.9;
         cv::Mat cc_top,dt,cc_top_stats,centeroids;
         auto num_cc_top = cv::connectedComponentsWithStats(mask_thresh_int,cc_top,cc_top_stats,centeroids,4);
         int largest_cc_top = find_largst_cc(cc_top_stats);
@@ -44,9 +42,7 @@ namespace caffe
 
         for (float current_thresh = 0.1; current_thresh<0.9;current_thresh+=quantization)
         {
-            cv::Mat current_thresh_mask = mask >= current_thresh;
-            cv::Mat current_thresh_int = mask_thresh*255;
-            current_thresh_int.convertTo(current_thresh_int,CV_8UC1);
+            cv::Mat current_thresh_int = mask >= current_thresh;
             cv::Mat current_cc_res,current_cc_stats;
             auto current_num_cc = cv::connectedComponentsWithStats(current_thresh_int,current_cc_res,current_cc_stats,centeroids,4);
             if (current_num_cc == num_cc_top)
@@ -56,7 +52,7 @@ namespace caffe
             int current_largest_cc = find_largst_cc(current_cc_stats);
             current_d.setTo(0,current_cc_res == current_largest_cc);
             current_d.setTo(0,current_cc_res == 0);
-            current_d.setTo(0,current_cc_res < theta);
+            current_d.setTo(0,current_d < theta);
 
             //cv::imshow("current d",current_d);
             cv::Mat mutipication;
@@ -66,7 +62,7 @@ namespace caffe
         }
         
         auto res = cv::sum(max_penalty)[0]/
-                   (mask.rows*mask.cols - cc_top_stats.ptr<int>(largest_cc_top)[cv::CC_STAT_AREA]);
+                   (cc_top_stats.ptr<int>(largest_cc_top)[cv::CC_STAT_AREA]);
         std::cout<<res<<"\n";
         return res > 0.0 ? res : Dtype(0);
     }
