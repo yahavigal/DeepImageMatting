@@ -85,23 +85,7 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
             d_im_f = np.float32(d_im )
             d_im_n = (255.*(d_im_f/1800.))
             d_im_n = np.uint8(d_im_n)
-	elif algoType == 3: # normalize and fill depth
-	    ipdb.set_trace()
-            thresh0 = 0
-            thresh1 = 1800
-            d_im[ d_im > thresh1] = 0
-            d_im[ d_im < thresh0] = 0
-	    d_im_4 = cv2.resize(d_im, (d_im.shape[1]/4,d_im.shape[0]/4))
-	    plt.imshow(d_im_4)
-            plt.show()
-            d_im_4_m = cv2.medianBlur(d_im_4, 5)
-	    plt.imshow(d_im_4_m)
-            plt.show()
-            kernel = np.ones((5,5),np.uint8)
-            d_im_4_d = cv2.morphologyEx(d_im_4, cv2.MORPH_CLOSE, kernel)
-            plt.imshow(d_im_4_d)
-            plt.show()
-       
+	       
         cv2.imwrite(depth_norm_path,d_im_n)
 
 

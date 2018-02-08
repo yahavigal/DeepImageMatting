@@ -55,27 +55,41 @@ for i1 = N +1 : length(B)
         vt(vt==0) = [];
         averVal = mean(vt);
         % stdVal = std(double(vt));
-if 0        
+if 1        
         tmp = croi;
         tmp = medfilt2(tmp, [5,5]);
 end
 
-if 1 
+if 0 
        tmp = d_m(indYstart :indYend, indXstart : indXend);
 end
         
-if 0
-        tmp = depth2proc(indYstart :indYend, indXstart : indXend);        
-%         cc_sub(:,1) = cc(:,1) - indYstart;
-%         cc_sub(:,2) = cc(:,2) - indXstart;
-%         [ n, m] = size(tmp);
-%         BW = poly2mask(cc_sub(:,2),cc_sub(:,1),m,n);
+if 1
+        cc_sub = [];
+        tmp1 = d_m(indYstart :indYend, indXstart : indXend);        
+        cc_sub(:,1) = cc(:,1) - indYstart;
+        cc_sub(:,2) = cc(:,2) - indXstart;
+        [ m, n] = size(tmp);
+        inside_mask = poly2mask(cc_sub(:,2),cc_sub(:,1),m,n);
+        v_in = tmp1(:);
+        m_in = inside_mask(:);
+        v_in_m = v_in(m_in);
+        v_in_m(v_in_m == 0) = [];
+        
+        if isempty(v_in_m)
+            v_in_aver = 0;
+        else
+            v_in_aver = mean(v_in_m);
+        end
 end
         
         maxVal_loc = 0.95* max(tmp(:));        
         tmp(tmp == 0) = maxVal_loc;
         minVal_loc = 1.05*min(tmp(:));
-        if maxVal_loc-minVal_loc > 200 + 0.1*averVal
+        if maxVal_loc-minVal_loc > (200 + 0.1*averVal)
+            continue;
+        end
+        if v_in_aver > 0 && ( abs(averVal - v_in_aver) > 150 )
             continue;
         end
     end
