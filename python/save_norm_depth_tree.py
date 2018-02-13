@@ -54,8 +54,9 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
 
-	    # normalize depth
-        d_im = cv2.imread(depth_path, 2)
+	# normalize depth
+        d_im = cv2.imread(depth_path, -1)
+	# d_im = cv2.imread(depth_path,  2)
         #plt.imshow(d_im)
         #plt.show()
         minVal, maxVal,_, _ = cv2.minMaxLoc(d_im);
@@ -68,24 +69,28 @@ def save_depth_tree(root, images_input, caseDirName, outputSubDir, target_ext, a
             d_im[ d_im > thresh1] = 0
             d_im[ d_im < thresh0] = 0
             minVal, maxVal,_, _ = cv2.minMaxLoc(d_im);
-            d_im_n = (255*(d_im - minVal)/(maxVal - minVal))
+            d_im_f = d_im.astype(np.float32)
+            d_im_f = (np.float32(255./(maxVal - minVal))*(d_im_f - np.float32(minVal) )) + np.float32(0.5)
+            d_im_n = d_im_f.astype(np.uint8)
+            #d_im_n = (255*(d_im - minVal)/(maxVal - minVal))
+            #d_im_n = cv2.normalize(d_im, alpha=0, beta=255, norm_type=cv2.cv.CV_MINMAX, dtype=cv2.cv.CV_8UC3)
         elif algoType == 1:
             thresh0 = 0
             thresh1 = 1800
             d_im[ d_im > thresh1] = 0
             d_im[ d_im < thresh0] = 0
-            d_im_f = np.float32(d_im )
-            d_im_n = (255.*(d_im_f/1800.))
-            d_im_n = np.uint8(d_im_n)
+            d_im_f = d_im.astype(np.float32)
+            d_im_f = (np.float32(255./thresh1)*d_im_f) + np.float32(0.5)
+            d_im_n = d_im_f.astype(np.uint8)
         elif algoType == 2:
             thresh0 = 0
             thresh1 = 1800
             d_im[ d_im > thresh1] = thresh1
             d_im[ d_im < thresh0] = thresh0
-            d_im_f = np.float32(d_im )
-            d_im_n = (255.*(d_im_f/1800.))
-            d_im_n = np.uint8(d_im_n)
-	       
+            d_im_f = d_im.astype(np.float32)
+            d_im_f = (np.float32(255./thresh1)*d_im_f) + np.float32(0.5)
+            d_im_n = d_im_f.astype(np.uint8)
+
         cv2.imwrite(depth_norm_path,d_im_n)
 
 
