@@ -77,7 +77,7 @@ void MaskTemporalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
         lossPerAllBatch += sumOfElementWiseLoss;		
     }
 
-    top[0]->mutable_cpu_data()[0] = lossPerAllBatch/num;
+    top[0]->mutable_cpu_data()[0] = lossPerAllBatch/(num-1);
 }
 
     template <typename Dtype>
@@ -118,7 +118,7 @@ void MaskTemporalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
                 LOG_IF(FATAL,index>=predictions->count())<<"index :"<<index<<" i: "<<i<<" dim: "<<dim<<" height :"<<height<<" stride: "<<stride<<" width :"<<width<<" count: "<<predictions->count();
 
                 Dtype grad = Dtype(2)*(diff_pred - diff_mask);
-                predictions->mutable_cpu_diff()[index] = grad/norm_factor;
+                predictions->mutable_cpu_diff()[index] = grad;//norm_factor;
             }
         }
     }

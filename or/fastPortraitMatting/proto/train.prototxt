@@ -273,7 +273,7 @@ layer {
   type: "BatchNorm"
   bottom: "conv_feathering_1"
   top: "bn_1"
-  batch_norm_param { use_global_stats: true}
+  batch_norm_param { use_global_stats: false}
 }
 layer {
   name: "relu_feathering_1"
@@ -378,6 +378,21 @@ layer {
   bottom: "alpha_pred_s"
   bottom: "alpha_gt"
   top: "mask_gradient"
+}
+layer {
+  name: "mask_connect"
+  type: "MaskConnectAccuracy"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_connect"
+}
+layer {
+  name: "temporal_accuracy"
+  type: "MaskTemporalLoss"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "temporal_accuracy"
+  loss_weight: 0
 }
 
  

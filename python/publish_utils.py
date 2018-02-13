@@ -6,6 +6,31 @@ import os
 from email.mime.text import MIMEText
 import commands
 import ipdb
+import csv
+
+def replace_names_in_log_file(publish,dst_path,results_path):
+
+    orig_path = find_orig_path(publish)
+    dst_path = dst_path.replace(orig_path[1], orig_path[0])
+    dst_path_orig = dst_path.replace(os.sep,'\\')
+
+    with open(os.path.join(results_path,'test_log_file.txt'),'rb') as csvfile:
+        with open(os.path.join(results_path,'test_log_file_links.csv'),'w') as csvtarget:
+            reader = csv.DictReader(csvfile, delimiter=' ')
+            writer = csv.DictWriter(csvtarget,delimiter=' ',fieldnames= reader.fieldnames)
+            images_in_dir = [x for x in os.listdir(results_path) if 'mask.png' in x]
+            for row in reader:
+                path = row['image_path'].replace(os.sep,'_')
+                match = [x for x in images_in_dir if x[0:x.index('iou') - 1] in path]
+                if len(match) == 0:
+                    continue
+                match = match[0]
+                current_path =   os.path.join(dst_path_orig,match)
+                current_path = current_path.replace(os.sep,'\\')
+                row['image_path'] = current_path
+                writer.writerow(row)
+
+
 
 def find_orig_path(publish):
     mount_points = commands.getoutput('mount -v')
@@ -49,6 +74,7 @@ def publish_results(publish,trainer):
         exp_num = int(dst_path_candidate.split('_')[-1])
         dst_path_candidate ='{}_{}'.format(dst_path,exp_num+1)
         dst_path_candidate = os.path.join(publish,dst_path_candidate)
+    replace_names_in_log_file(publish,dst_path_candidate,trainer.results_path)
     shutil.copytree(trainer.results_path,dst_path_candidate,
                     ignore = shutil.ignore_patterns('*.caffemodel'))
     trainer.solver.net.save(os.path.join(dst_path_candidate,"final.caffemodel"), False)

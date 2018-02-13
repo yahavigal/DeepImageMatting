@@ -364,7 +364,7 @@ layer {
   bottom: "alpha_pred_s"
   bottom: "alpha_gt"
   top: "temporal_loss"
-  loss_weight: 0.05
+  loss_weight: 0.5
 }
 layer {
   name: "iou"
@@ -388,12 +388,12 @@ layer {
   bottom: "alpha_gt"
   top: "mask_gradient"
 }
-#layer {
-#  name: "mask_gradient"
-#  type: "MaskConnectAccuracy"
-#  bottom: "alpha_pred_s"
-#  bottom: "alpha_gt"
-#  top: "mask_connect"
-#}
+layer {
+  name: "mask_connect"
+  type: "MaskConnectAccuracy"
+  bottom: "alpha_pred_s"
+  bottom: "alpha_gt"
+  top: "mask_connect"
+}
 
  

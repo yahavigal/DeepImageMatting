@@ -63,7 +63,7 @@ namespace caffe
         
         auto res = cv::sum(max_penalty)[0]/
                    (cc_top_stats.ptr<int>(largest_cc_top)[cv::CC_STAT_AREA]);
-        std::cout<<res<<"\n";
+        //std::cout<<res<<"\n";
         return res > 0.0 ? res : Dtype(0);
     }
     
