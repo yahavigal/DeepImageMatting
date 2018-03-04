@@ -39,6 +39,18 @@ def find_orig_path(publish):
                  if x.split(' ')[2] in publish and x.split(' ')[4] == 'cifs'][0]
     return orig_path
 
+def create_dlc_file(deploy_path,weights_path,out_file):
+    deploy_path = os.path.abspath(deploy_path)
+    weights_path = os.path.abspath(weights_path)
+    cur_dir = os.getcwd()
+    os.chdir('../BGS_scripts')
+    dlc_command = 'bash convert_to_dlc.sh {} {} {}'.format(deploy_path,
+                                                           weights_path,
+                                                           os.path.abspath(out_file))
+    sudo_pswd= '123'
+    os.system('echo %s|sudo -S %s' % (sudo_pswd,dlc_command))
+    os.chdir(cur_dir)
+
 def publish_emails(publish,dst_path):
 
     orig_path = find_orig_path(publish)
@@ -78,5 +90,8 @@ def publish_results(publish,trainer):
     shutil.copytree(trainer.results_path,dst_path_candidate,
                     ignore = shutil.ignore_patterns('*.caffemodel'))
     trainer.solver.net.save(os.path.join(dst_path_candidate,"final.caffemodel"), False)
+    create_dlc_file(os.path.join(trainer.results_path,trainer.deploy_file),
+                    os.path.join(dst_path_candidate,"final.caffemodel"),
+                    os.path.join(dst_path_candidate,trainer.deploy_file.replace('prototxt','dlc')))
     publish_emails(publish,dst_path_candidate)
 

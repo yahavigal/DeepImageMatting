@@ -27,6 +27,7 @@ from caffe.proto import caffe_pb2
 import publish_utils
 import shutil
 import TF_utils
+from convert_train_to_deploy import *
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 
@@ -57,7 +58,7 @@ def copy_last_masks(net,data_provider):
 #or@ortrainubuntu5:~/caffe-BGS-win/python$ python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/composed/train_list.txt --test_dir ../or/deepImageMatting/scripts/composed/test_list.txt --trimap_dir /media/or/Data/composed/DataSet_2_composed_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_9180_MaxAccuracy8968.caffemodel
 
 
-class bgs_test_train:
+class bgs_test_train (object):
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
@@ -155,6 +156,11 @@ class bgs_test_train:
         net.blobs[net.inputs[1]].reshape(*masks.shape)
         net.blobs[net.inputs[0]].data[...]= images
         net.blobs[net.inputs[1]].data[...]= masks
+        #part of ofir's method in comment for now  
+        #if self.temporal == True and np.any(images[:,-1,:]) == False:
+        #    self.solver.net.forward()
+        #else:
+        #    self.solver.step(1)
         self.solver.step(1)
 
         # dense sparse dense (DSD)
@@ -291,6 +297,7 @@ class bgs_test_train:
 
         test_log_file.close()
         if self.solver_path is not None:
+            self.deploy_file = convert_train_to_deploy(get_net_path(self.solver_path),self.results_path)
             shutil.copyfile(get_net_path(self.solver_path),os.path.join(self.results_path,'net.prototxt'))
             shutil.copyfile(self.solver_path,os.path.join(self.results_path,'slover.prototxt'))
 
@@ -374,6 +381,7 @@ if __name__ == "__main__":
     parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
     parser.add_argument('--temporal', action = 'store_true', help="train with temporal smoothness consistency")
+    parser.add_argument('--comment', type=str, required='--publish' in sys.argv  ,help="comment to explain your extra details of experiment mandatory for publish")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
