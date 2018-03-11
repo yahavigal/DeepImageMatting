@@ -25,13 +25,10 @@ bash ~/.bashrc
 source ./bin/envsetup.sh -c $CAFFE_ROOT 
 
 #4. convert model 
-./bin/x86_64-linux-clang/snpe-caffe-to-dlc -c $1 -b $2 -d $3 --in_layer data --encoding rgba --validation_target cpu snapdragon_820 --strict
+./bin/x86_64-linux-clang/snpe-caffe-to-dlc -c $1 -b $2 -d $3
 popd
 
 #5. upload the converted model to the artifactory
 #bash artifactory-deploy.sh -g bgs.intel -a NPE_model  -v 1.0.0 -e dlc  \
 #    -d http://artifactoryperc01.iil.intel.com:8081/artifactory/libs-release-local \
 #    -u bgs-models -p 1234bgs  -f $3 
-
-
-

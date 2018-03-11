@@ -62,9 +62,10 @@ class bgs_test_train (object):
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
-                 threshold = -1,temporal = False,results_path=None):
+                 threshold = -1,temporal = False,results_path=None,comment=''):
 
         self.threhold_param = threshold
+        self.comment = comment
         if trimap_dir is not None:
             if "trimap" in trimap_dir.lower():
                 self.trimap_ext = "_triMap"
@@ -156,7 +157,7 @@ class bgs_test_train (object):
         net.blobs[net.inputs[1]].reshape(*masks.shape)
         net.blobs[net.inputs[0]].data[...]= images
         net.blobs[net.inputs[1]].data[...]= masks
-        #part of ofir's method in comment for now  
+        #part of ofir's method in comment for now
         #if self.temporal == True and np.any(images[:,-1,:]) == False:
         #    self.solver.net.forward()
         #else:
@@ -289,6 +290,8 @@ class bgs_test_train (object):
                 print str_train
                 summary.write(str_test + '\n')
                 summary.write(str_train + '\n')
+            print self.comment
+            summary.write(self.comment + '\n')
 
             print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
@@ -335,12 +338,12 @@ class bgs_test_train (object):
         plt.show(block=False)
 
 def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,
-                 threshold,publish,real,temporal):
+                 threshold,publish,real,temporal,comment):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
                              trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle,threshold=threshold,
-                             temporal=temporal)
+                             temporal=temporal,comment=comment)
 
     while trainer.data_provider.epoch_ind < epochs_num:
         trainer.train()
@@ -381,11 +384,12 @@ if __name__ == "__main__":
     parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
     parser.add_argument('--temporal', action = 'store_true', help="train with temporal smoothness consistency")
-    parser.add_argument('--comment', type=str, required='--publish' in sys.argv  ,help="comment to explain your extra details of experiment mandatory for publish")
+    parser.add_argument('--comment', type=str, required='--publish' in sys.argv, help="comment to explain your extra details of experiment mandatory for publish")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
-                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish,real =args.real, temporal=args.temporal)
+                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish,real =args.real, temporal=args.temporal,
+                 comment = args.comment)
     raw_input()
 
 
