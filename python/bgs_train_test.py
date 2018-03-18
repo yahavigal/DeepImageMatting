@@ -259,7 +259,8 @@ class bgs_test_train (object):
                 for output in net.outputs:
                     if output == 'alpha_pred' or output == 'alpha_pred_s':
                         continue
-                    self.test_measures[output].append(net.blobs[output].data.flatten()[0])
+                    if i==0:
+                        self.test_measures[output].append(net.blobs[output].data.flatten()[0])
                     test_log_file.write(" {}".format(self.test_measures[output][-1]))
                 test_log_file.write('\n')
 

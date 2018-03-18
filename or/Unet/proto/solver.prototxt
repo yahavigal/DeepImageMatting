@@ -1,0 +1,8 @@
+net: "/home/or/caffe-win/or/Unet/proto/train_v2.prototxt"
+base_lr: 5e-7
+type: "Adam"
+lr_policy: "fixed"
+stepsize: 3000
+gamma: 0.1
+momentum: 0.9
+weight_decay: 0.00005

@@ -14,7 +14,7 @@ class TemporalDataProvider(DataProvider) :
                  img_width=128,img_height=128):
 
         super(TemporalDataProvider,self).__init__(images_dir_test,images_dir_train,trimap_dir,shuffle_data=True,
-                       batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
+                       batch_size=batch_size,use_data_aug=False,use_adv_data_train=False,
                        threshold_param= threshold_param,img_width= img_width,img_height=img_height)
 
         self.train_last_clip_name = self.images_list_train[0].split(os.sep)[-3]
