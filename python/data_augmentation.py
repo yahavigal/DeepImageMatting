@@ -85,10 +85,17 @@ def translate(image, gt,trimap = None):
     translated_gt = cv2.warpAffine(gt,M,(cols,rows))
     if trimap is not None:
         translated_trimap = cv2.warpAffine(trimap, M, (cols,rows))
-        if coin == 0:
-            translated_trimap[:,translation_x:cols-1] = 128
+        if len(np.unique(trimap)) == 3:
+            if coin == 0:
+                translated_trimap[:,translation_x:cols-1] = 128
+            else:
+                translated_trimap[:,0:translation_x] = 128
         else:
-            translated_trimap[:,0:translation_x] = 128
+            if coin == 0:
+                translated_trimap[:,translation_x:cols-1] = trimap[:,translation_x:cols-1]
+            else:
+                translated_trimap[:,0:translation_x] = trimap[:,0:translation_x]
+
         return [translated_image,translated_gt,translated_trimap]
     else:
         return [translated_image,translated_gt]
