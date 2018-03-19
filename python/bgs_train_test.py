@@ -385,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
     parser.add_argument('--temporal', action = 'store_true', help="train with temporal smoothness consistency")
-    parser.add_argument('--comment', type=str, required='--publish' in sys.argv, help="comment to explain your extra details of experiment mandatory for publish")
+    parser.add_argument('--comment', type=str, required='--publish' in sys.argv ,default='', help="comment to explain your extra details of experiment mandatory for publish")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
