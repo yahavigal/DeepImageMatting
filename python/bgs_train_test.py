@@ -28,6 +28,7 @@ import publish_utils
 import shutil
 import TF_utils
 from convert_train_to_deploy import *
+from benchmark_utils import *
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 
@@ -339,7 +340,7 @@ class bgs_test_train (object):
         plt.show(block=False)
 
 def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,
-                 threshold,publish,real,temporal,comment):
+                 threshold,publish,real,temporal,comment,benchmark):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
@@ -365,12 +366,23 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
         trainer.plot_statistics()
     if publish is not None:
         trainer.results_path = trainer.results_path.replace("real_data","")
+        if benchmark == True:
+            trainer.solver.net.save(os.path.join(trainer.results_path,"final.caffemodel"), False)
+            deploy_net = [os.path.join(trainer.results_path,x) for x in os.listdir(trainer.results_path) if 'deploy' in x and x.endswith('.prototxt')][0]
+            trigger_benchmark(os.path.join(trainer.results_path,'final.caffemodel'),deploy_net)
         publish_utils.publish_results(publish,trainer)
 
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
+    epilog= '''Usage:
+    python bgs_train_test.py --train_dir ../BGS_scripts/train_list.txt
+                              --test_dir ../BGS_scripts/test_list.txt
+                              --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm
+                              --solver ../or/fastPortraitMatting/proto/solver.prototxt
+                              --model  ../or/fastPortraitMatting/snapshots/_iter_100.caffemodel'''
+                                    )
     parser.add_argument('--train_dir', type=str, required=True, help="train directory path or list")
     parser.add_argument('--test_dir', type=str, required=True, help="test directory path or list")
     parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output")
@@ -386,11 +398,12 @@ if __name__ == "__main__":
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
     parser.add_argument('--temporal', action = 'store_true', help="train with temporal smoothness consistency")
     parser.add_argument('--comment', type=str, required='--publish' in sys.argv ,default='', help="comment to explain your extra details of experiment mandatory for publish")
+    parser.add_argument('--benchmark', action='store_true', help="trigger windows (and android) benchmark valid only in publish")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
                  shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish,real =args.real, temporal=args.temporal,
-                 comment = args.comment)
+                 comment = args.comment, benchmark=args.benchmark)
     raw_input()
 
 
