@@ -50,7 +50,7 @@ class Handler(FileSystemEventHandler):
 
     def on_any_event(self,event):
         if event.is_directory:
-            if 'output' in event.src_path:
+            if 'bgs_model_request_0_output' ==  os.path.split(event.src_path)[1]:
                 print event.src_path, event.event_type
                 self.observer.on_stop(event.src_path)
 
