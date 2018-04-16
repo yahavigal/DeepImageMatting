@@ -29,6 +29,8 @@ import shutil
 import TF_utils
 from convert_train_to_deploy import *
 from benchmark_utils import *
+import types
+import fs_metrics
 
 current_milli_time = lambda: int(round(time.time() * 1000))
 
@@ -150,6 +152,9 @@ class bgs_test_train (object):
             convert_to_tf.load_caffe_weights(solver_path,weights_path)
             self.tf_trainer =  TF_utils.TF_trainer(solver_path.split(os.sep)[-3],self.data_provider.img_width,self.data_provider.img_height,
                                           batch_size =self.data_provider.batch_size)
+        #if self.use_fs_metric == True:
+        self.fs_metrics = [(x,getattr(fs_metrics,x))  for x in dir(fs_metrics) if isinstance(fs_metrics.__dict__.get(x), types.FunctionType)]
+
 
     def train(self):
         images, masks = self.data_provider.get_batch_data()
@@ -263,6 +268,16 @@ class bgs_test_train (object):
                     if i==0:
                         self.test_measures[output].append(net.blobs[output].data.flatten()[0])
                     test_log_file.write(" {}".format(self.test_measures[output][-1]))
+                for fs_metric in self.fs_metrics:
+                    preds_blob = net.blobs['alpha_pred_s'].data.copy()
+                    fs_w = self.data_provider.mask_orig[0].shape[1]
+                    fs_h = self.data_provider.mask_orig[0].shape[0]
+                    cv_preds = cv2.resize(np.squeeze(preds_blob.transpose([2,3,0,1])),(fs_w,fs_h))
+                    #cv_preds = cv_preds.transpose([2,0,1])
+                    cv_preds = np.expand_dims(cv_preds,axis=0)
+                    self.test_measures[fs_metric[0]].append(fs_metric[1](np.array(self.data_provider.mask_orig),cv_preds))
+                    test_log_file.write(" {}".format(fs_metric[0],self.test_measures[fs_metric[0]][-1]))
+
                 test_log_file.write('\n')
 
                 iou = int(100*self.test_measures['mask_accuracy'][-1])
@@ -292,6 +307,14 @@ class bgs_test_train (object):
                 print str_train
                 summary.write(str_test + '\n')
                 summary.write(str_train + '\n')
+
+            for fs_metric in self.fs_metrics:
+                str_test =  "{} average {} on test: {} variance {}".format(self.exp_name,fs_metric[0],
+                                                                           np.average(self.test_measures[fs_metric[0]]),
+                                                                           np.var(self.test_measures[fs_metric[0]]))
+                print str_test
+                summary.write(str_test + '\n')
+
             print self.comment
             summary.write(self.comment + '\n')
 
@@ -301,7 +324,7 @@ class bgs_test_train (object):
             print "average iou on test in TF {}".format(np.average(avg_iou_tf))
 
         test_log_file.close()
-        if self.solver_path is not None:
+        if hasattr(self,'solver_path'):
             self.deploy_file = convert_train_to_deploy(get_net_path(self.solver_path),self.results_path)
             shutil.copyfile(get_net_path(self.solver_path),os.path.join(self.results_path,'net.prototxt'))
             shutil.copyfile(self.solver_path,os.path.join(self.results_path,'slover.prototxt'))
