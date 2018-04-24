@@ -274,7 +274,7 @@ layer {
   type: "BatchNorm"
   bottom: "conv_feathering_1"
   top: "bn_1"
-  batch_norm_param { use_global_stats: false}
+  batch_norm_param { use_global_stats: true}
 }
 layer {
   name: "relu_feathering_1"
@@ -329,7 +329,7 @@ layer {
   eltwise_param { operation: PROD }
 }
 layer {
-  name: "guided_filter"
+  name: "alpha_pred"
   type: "Eltwise"
   bottom: "a_mult_bg"
   bottom: "b_mult_fg"
