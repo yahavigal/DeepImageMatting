@@ -221,6 +221,9 @@ class bgs_test_train (object):
             if output == 'alpha_pred' or output == 'alpha_pred_s':
                 continue
             test_log_file.write(" {}".format(output))
+        for fs_metric in self.fs_metrics:
+            test_log_file.write(" {}".format(fs_metric[0]))
+
             self.test_measures[output] = []
         test_log_file.write('\n')
         diff_caffe_tf = []
