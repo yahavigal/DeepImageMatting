@@ -235,7 +235,7 @@ layer {
   concat_param { axis: 1 }
 }
 layer {
-  name: "data_squared"
+  name: "data_fg"
   type: "Eltwise"
   bottom: "data"
   bottom: "concat_foreground"
