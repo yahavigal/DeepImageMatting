@@ -33,7 +33,7 @@ class DataProvider(object) :
         return list_images
 
     def __init__(self, images_dir_test, images_dir_train,trimap_dir=None, shuffle_data=True,
-                 batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1,
+                 batch_size = 32, use_data_aug = False, use_adv_data_train = False,threshold_param = -1,
                  img_width=128,img_height=128):
 
         self.gt_ext = "_silhuette"

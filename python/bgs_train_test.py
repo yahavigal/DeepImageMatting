@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from data_provider import *
 from temporal_data_provider import *
+from data_provider_time_smoothing import *
 from plot_test_images import *
 from google.protobuf import text_format
 from caffe.proto import caffe_pb2
@@ -65,7 +66,7 @@ class bgs_test_train (object):
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
                  trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
-                 threshold = -1,temporal = False,results_path=None,comment=''):
+                 threshold = -1, temporal = None, results_path=None,comment=''):
 
         self.threhold_param = threshold
         self.comment = comment
@@ -92,18 +93,25 @@ class bgs_test_train (object):
             check_threshold_param(solver_path,threshold)
             img_width = self.net.blobs[self.net.inputs[0]].shape[3]
             img_height = self.net.blobs[self.net.inputs[0]].shape[2]
-        if temporal == False:
+
+        if temporal == None:
                 self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
                                                   batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
                                                   threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
-        else:
+        elif temporal == 'temporal':
             self.data_provider = TemporalDataProvider(images_dir_test,images_dir_train,trimap_dir,
                                               batch_size=batch_size,use_data_aug=False,use_adv_data_train=False,
                                               threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
+        elif temporal == 'time_smooth':
+            self.data_provider = TimeSmoothDataProvider(images_dir_test,images_dir_train,trimap_dir, shuffle_data,
+                                              batch_size=batch_size,use_data_aug=False,use_adv_data_train=False,
+                                              threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
+
+        self.data_provider.solver = self.solver
 
         self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
         self.exp_name += "_threshold_{}".format(self.threhold_param)
-        if temporal == True and self.data_provider.insert_prev_data == True:
+        if temporal == 'temporal' and self.data_provider.insert_prev_data == True:
             self.exp_name+='_temporal'
 
         if weights_path != None and weights_path != "" and os.path.isfile(weights_path):
@@ -157,18 +165,31 @@ class bgs_test_train (object):
 
 
     def train(self):
-        images, masks = self.data_provider.get_batch_data()
+        if self.temporal == 'time_smooth':
+            images, masks, masks_prev, preds_prev = self.data_provider.get_batch_data()
+        else:
+            images, masks = self.data_provider.get_batch_data()
+
         net = self.solver.net
         net.blobs[net.inputs[0]].reshape(*images.shape)
         net.blobs[net.inputs[1]].reshape(*masks.shape)
         net.blobs[net.inputs[0]].data[...]= images
         net.blobs[net.inputs[1]].data[...]= masks
+
+        if self.temporal == 'time_smooth':
+            net.blobs[net.inputs[2]].reshape(*masks_prev.shape)
+            net.blobs[net.inputs[3]].reshape(*preds_prev.shape)
+            net.blobs[net.inputs[2]].data[...]= masks_prev
+            net.blobs[net.inputs[3]].data[...]= preds_prev
+
         #part of ofir's method in comment for now
-        #if self.temporal == True and np.any(images[:,-1,:]) == False:
+        #if self.temporal == 'temporal' and np.any(images[:,-1,:]) == False:
         #    self.solver.net.forward()
         #else:
         #    self.solver.step(1)
+        
         self.solver.step(1)
+	#ipdb.set_trace() # to see data in net including gradiets and data
 
         # dense sparse dense (DSD)
         if self.DSD_flag == True and self.DSD_masks is not None:
@@ -203,10 +224,128 @@ class bgs_test_train (object):
             snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+".caffemodel")
             self.solver.net.save(snapshot_file, self.snapshot_diff)
 
-        if self.temporal == True:
+        if self.temporal == 'temporal':
             copy_last_masks(net,self.data_provider)
 
         return net.blobs['loss'].data
+
+    def test_aux_ts(self, net, times, test_log_file, is_save_fig):
+         for self.data_provider.list_ind in xrange(0, len(self.data_provider.images_list_test) ):
+            self.data_provider.get_current_clip_list( self.data_provider.images_list_test, self.data_provider.list_ind)
+            pred_prev_r = None
+            mask_prev_r = None
+            for self.data_provider.current_clip_ind in xrange(0, len(self.data_provider.current_clip_list)):
+                print self.data_provider.current_clip_ind
+                image_path = self.data_provider.current_clip_list[self.data_provider.current_clip_ind];
+		
+                img_r, mask_r = self.data_provider.get_test_data( 1, image_path, pred_prev_r, mask_prev_r)
+                if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
+                    continue
+
+                if pred_prev_r is None:
+	            pred_prev_r = np.zeros_like(mask_r)
+
+	        if mask_prev_r is None:
+	            mask_prev_r = np.zeros_like(mask_r)               
+
+                if img_r.ndim < 4:
+		    img_r = np.expand_dims(img_r, axis = 0)
+                if mask_r.ndim < 4:
+                    mask_r = np.expand_dims(mask_r, axis = 0)
+                if mask_prev_r.ndim < 4:
+                    mask_prev_r = np.expand_dims( mask_prev_r, axis = 0)
+                if pred_prev_r.ndim < 4:
+                    pred_prev_r = np.expand_dims(pred_prev_r, axis = 0)
+
+                
+                net.blobs[net.inputs[0]].reshape(*img_r.shape)
+                net.blobs[net.inputs[1]].reshape(*mask_r.shape)
+                net.blobs[net.inputs[0]].data[...]= img_r
+                net.blobs[net.inputs[1]].data[...]= mask_r
+                net.blobs[net.inputs[2]].reshape(*mask_prev_r.shape)
+                net.blobs[net.inputs[2]].data[...]= mask_prev_r
+                net.blobs[net.inputs[3]].reshape(*pred_prev_r.shape)            
+                net.blobs[net.inputs[3]].data[...]= pred_prev_r
+
+                input_bin = img_r.flatten().tolist()
+
+                start = current_milli_time()
+                net.forward()
+                times.append(current_milli_time() - start)
+            
+                mask_prev_r = mask_r.copy()
+                if 'alpha_pred_s' in net.blobs.keys():
+            	    pred_prev_r = net.blobs['alpha_pred_s'].data[0].copy()
+        	else:
+            	    pred_prev_r = net.blobs['alpha_pred'].data[0].copy()
+
+                single_image = img_r
+                single_mask = mask_r
+                image = self.data_provider.current_clip_list[self.data_provider.current_clip_ind]
+                
+                test_log_file.write(image)
+                for output in net.outputs:
+                    if output == 'alpha_pred' or output == 'alpha_pred_s':
+                        continue
+                    self.test_measures[output].append(net.blobs[output].data.flatten()[0])
+                    test_log_file.write(" {}".format(self.test_measures[output][-1]))
+                test_log_file.write('\n')
+
+                iou = int(100*self.test_measures['mask_accuracy'][-1])
+
+                if self.save_test_by_loss == True:
+                    loss_per_image[self.test_measures['loss'][-1]] = image
+
+                if is_save_fig == True:
+                    plot_test_images(self.data_provider,net,0,self.dump_bin,
+                                     self.view_all,self.infer_only_trimap, self.results_path, iou, input_bin)
+
+
+
+    def test_aux_std(self, net, times, test_log_file, is_save_fig):
+	while self.data_provider.epoch_ind == 0:
+            img_r,mask_r = self.data_provider.get_test_data()
+            if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
+                continue
+            net.blobs[net.inputs[0]].reshape(*img_r.shape)
+            net.blobs[net.inputs[1]].reshape(*mask_r.shape)
+            net.blobs[net.inputs[0]].data[...]= img_r
+            net.blobs[net.inputs[1]].data[...]= mask_r
+            input_bin = img_r.flatten().tolist()
+            start = current_milli_time()
+            net.forward()
+            times.append(current_milli_time() - start)
+
+            for i in xrange(len(img_r)):
+
+                single_image = img_r[i]
+                single_mask = mask_r[i]
+                image = self.data_provider.images_path_in_batch[i]
+                if self.use_tf_inference ==True:
+                    tf_res,iou = self.tf_trainer.run_inference(single_image,single_mask)
+                    avg_iou_tf.append(iou)
+
+                test_log_file.write(image)
+                for output in net.outputs:
+                    if output == 'alpha_pred' or output == 'alpha_pred_s':
+                        continue
+                    if i==0:
+                        self.test_measures[output].append(net.blobs[output].data.flatten()[0])
+                    test_log_file.write(" {}".format(self.test_measures[output][-1]))
+                test_log_file.write('\n')
+
+                iou = int(100*self.test_measures['mask_accuracy'][-1])
+
+                if self.save_test_by_loss == True:
+                    loss_per_image[self.test_measures['loss'][-1]] = image
+
+                if is_save_fig == True:
+                    plot_test_images(self.data_provider,net,i,self.dump_bin,
+                                     self.view_all,self.infer_only_trimap, self.results_path, iou,input_bin)
+
+                if self.temporal == 'temporal':
+                    copy_last_masks(net,self.data_provider)
+                    self.data_provider.iter_ind += 1
 
     def test(self, is_save_fig = True):
 
@@ -242,59 +381,10 @@ class bgs_test_train (object):
         #no data augmentation in test
         trimap_r = None
 
-        while self.data_provider.epoch_ind == 0:
-            img_r,mask_r = self.data_provider.get_test_data()
-            if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
-                continue
-            net.blobs[net.inputs[0]].reshape(*img_r.shape)
-            net.blobs[net.inputs[1]].reshape(*mask_r.shape)
-            net.blobs[net.inputs[0]].data[...]= img_r
-            net.blobs[net.inputs[1]].data[...]= mask_r
-            input_bin = img_r.flatten().tolist()
-            start = current_milli_time()
-            net.forward()
-            times.append(current_milli_time() - start)
-
-            for i in xrange(len(img_r)):
-
-                single_image = img_r[i]
-                single_mask = mask_r[i]
-                image = self.data_provider.images_path_in_batch[i]
-                if self.use_tf_inference ==True:
-                    tf_res,iou = self.tf_trainer.run_inference(single_image,single_mask)
-                    avg_iou_tf.append(iou)
-
-                test_log_file.write(image)
-                for output in net.outputs:
-                    if output == 'alpha_pred' or output == 'alpha_pred_s':
-                        continue
-                    if i==0:
-                        self.test_measures[output].append(net.blobs[output].data.flatten()[0])
-                    test_log_file.write(" {}".format(self.test_measures[output][-1]))
-                for fs_metric in self.fs_metrics:
-                    preds_blob = net.blobs['alpha_pred_s'].data.copy()
-                    fs_w = self.data_provider.mask_orig[0].shape[1]
-                    fs_h = self.data_provider.mask_orig[0].shape[0]
-                    cv_preds = cv2.resize(np.squeeze(preds_blob.transpose([2,3,0,1])),(fs_w,fs_h))
-                    #cv_preds = cv_preds.transpose([2,0,1])
-                    cv_preds = np.expand_dims(cv_preds,axis=0)
-                    self.test_measures[fs_metric[0]].append(fs_metric[1](np.array(self.data_provider.mask_orig),cv_preds))
-                    test_log_file.write(" {}".format(fs_metric[0],self.test_measures[fs_metric[0]][-1]))
-
-                test_log_file.write('\n')
-
-                iou = int(100*self.test_measures['mask_accuracy'][-1])
-
-                if self.save_test_by_loss == True:
-                    loss_per_image[self.test_measures['loss'][-1]] = image
-
-                if is_save_fig == True:
-                    plot_test_images(self.data_provider,net,i,self.dump_bin,
-                                     self.view_all,self.infer_only_trimap, self.results_path, iou,input_bin)
-
-                if self.temporal == True:
-                    copy_last_masks(net,self.data_provider)
-                    self.data_provider.iter_ind += 1
+        if self.temporal == 'time_smooth':
+            self.test_aux_ts(net, times, test_log_file, is_save_fig)
+	else:
+	    self.test_aux_std(net, times, test_log_file, is_save_fig)
 
         with open(os.path.join(self.results_path,"summary.txt"),'w') as summary:
             for output in net.outputs:
@@ -422,7 +512,8 @@ if __name__ == "__main__":
     parser.add_argument('--publish', type=str,required=False, default = None, help= "copy results folder into a share drive")
     parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
-    parser.add_argument('--temporal', action = 'store_true', help="train with temporal smoothness consistency")
+    parser.add_argument('--temporal', choices = ['temporal', 'time_smooth'], required = False, default = None, 
+                        help="train with temporal smoothness consistency: possible values are: temporal - Omer, time_smooth - Alexandra")
     parser.add_argument('--comment', type=str, required='--publish' in sys.argv ,default='', help="comment to explain your extra details of experiment mandatory for publish")
     parser.add_argument('--benchmark', action='store_true', help="trigger windows (and android) benchmark valid only in publish")
     args = parser.parse_args()

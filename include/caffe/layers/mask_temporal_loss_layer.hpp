@@ -38,11 +38,19 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
 	  const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
+    void Forward_cpu_aux_2blobs(const vector<Blob<Dtype>*>& bottom,const vector<Blob<Dtype>*>& top);
+    void Forward_cpu_aux_4blobs(const vector<Blob<Dtype>*>& bottom,const vector<Blob<Dtype>*>& top);
+
+    void Backward_cpu_aux_2blobs(const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+    void Backward_cpu_aux_4blobs(const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
 	int m_predictionHeight;	
 	int m_predictionWidth;
 
 	int m_maskHeight;	
 	int m_maskWidth;
+
+    bool m_timeSmoothing;
 
 };
 

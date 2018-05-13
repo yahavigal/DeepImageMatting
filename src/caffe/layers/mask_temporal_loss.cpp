@@ -10,11 +10,16 @@ namespace caffe {
 template <typename Dtype>
 MaskTemporalLossLayer<Dtype>::MaskTemporalLossLayer(const LayerParameter& param):LossLayer<Dtype>(param) 
 {
+    m_timeSmoothing = false;
 }
 
 template <typename Dtype>
 void MaskTemporalLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
+    if(bottom.size()==4)
+    {
+        m_timeSmoothing = true;
+    }
     LossLayer<Dtype>::LayerSetUp(bottom, top);
     Blob<Dtype>* predictions = bottom[0];
     Blob<Dtype>* masks = bottom[1];
@@ -34,8 +39,6 @@ void MaskTemporalLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom
 template <typename Dtype>
 void MaskTemporalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,const vector<Blob<Dtype>*>& top)
 {
-
-
     CHECK_EQ(bottom[1]->shape(2), m_maskHeight);
     CHECK_EQ(bottom[1]->shape(3),m_maskWidth);
     CHECK_EQ(bottom[0]->shape(2), m_maskHeight);
@@ -44,6 +47,51 @@ void MaskTemporalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
     CHECK_EQ(bottom[0]->shape(1), 1)<<"prediction must have 1 channel";
     CHECK_EQ(bottom[1]->shape(1),1)<<"mask must have 1 channel";
 
+    if(m_timeSmoothing == false)
+        Forward_cpu_aux_2blobs( bottom, top);
+    else
+        Forward_cpu_aux_4blobs( bottom, top);
+#if 0 // old code
+    Blob<Dtype>* predictions = bottom[0];
+    Blob<Dtype>* masks = bottom[1];
+
+    int num = bottom[0]->shape(0);
+    Dtype lossPerAllBatch = 0;
+    Dtype norm_factor = m_predictionHeight*m_predictionWidth;
+
+    for (int i = 1; i < num; i++)
+    {
+        Dtype sumOfElementWiseLoss = 0;
+        for (int height = 0; height < predictions->shape(2); height++)
+        {
+            for (int width = 0; width < predictions->shape(3); width++)
+            {
+                
+                Dtype pred = predictions->data_at(i, 0, height, width);
+                Dtype prev_pred = predictions->data_at(i-1, 0, height, width);
+                Dtype mask = masks->data_at(i, 0, height, width);
+                Dtype prev_mask = masks->data_at(i-1, 0, height, width);
+                
+                Dtype diff_pred = pred - prev_pred;
+                Dtype diff_mask = mask - prev_mask;
+                
+                Dtype square = (diff_pred - diff_mask)*(diff_pred - diff_mask);
+                sumOfElementWiseLoss += square;
+
+            }
+        }
+
+        sumOfElementWiseLoss /= norm_factor;
+        lossPerAllBatch += sumOfElementWiseLoss;		
+    }
+
+    top[0]->mutable_cpu_data()[0] = lossPerAllBatch/(num-1);
+#endif
+}
+
+template <typename Dtype>
+void MaskTemporalLossLayer<Dtype>::Forward_cpu_aux_2blobs(const vector<Blob<Dtype>*>& bottom,const vector<Blob<Dtype>*>& top)
+{
     Blob<Dtype>* predictions = bottom[0];
     Blob<Dtype>* masks = bottom[1];
 
@@ -80,17 +128,102 @@ void MaskTemporalLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
     top[0]->mutable_cpu_data()[0] = lossPerAllBatch/(num-1);
 }
 
+template <typename Dtype>
+void MaskTemporalLossLayer<Dtype>::Forward_cpu_aux_4blobs(const vector<Blob<Dtype>*>& bottom,const vector<Blob<Dtype>*>& top)
+{
+    Blob<Dtype>* predictions = bottom[0];
+    Blob<Dtype>* masks = bottom[1];
+    Blob<Dtype>* predictions_prev = bottom[2];
+    Blob<Dtype>* masks_prev = bottom[3];
+
+    int num = bottom[0]->shape(0);
+    Dtype lossPerAllBatch = 0;
+    Dtype norm_factor = m_predictionHeight*m_predictionWidth;
+
+    for (int i = 0; i < num; i++)
+    {
+        Dtype sumOfElementWiseLoss = 0;
+        for (int height = 0; height < predictions->shape(2); height++)
+        {
+            for (int width = 0; width < predictions->shape(3); width++)
+            {
+                
+                Dtype pred = predictions->data_at(i, 0, height, width);
+                Dtype prev_pred = predictions_prev->data_at(i, 0, height, width);
+                Dtype mask = masks->data_at(i, 0, height, width);
+                Dtype prev_mask = masks_prev->data_at(i, 0, height, width);
+                
+                Dtype diff_pred = pred - prev_pred;
+                Dtype diff_mask = mask - prev_mask;
+                
+                Dtype square = (diff_pred - diff_mask)*(diff_pred - diff_mask);
+                sumOfElementWiseLoss += square;
+
+            }
+        }
+
+        sumOfElementWiseLoss /= norm_factor;
+        lossPerAllBatch += sumOfElementWiseLoss;		
+    }
+
+    top[0]->mutable_cpu_data()[0] = lossPerAllBatch/(num);
+}
+
     template <typename Dtype>
 void MaskTemporalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) 
 {
     Blob<Dtype>* predictions = bottom[0];
-    Blob<Dtype>* masks = bottom[1];
+    // Blob<Dtype>* masks = bottom[1];
 
     CHECK_GT(predictions->shape(0), 0) << "Zero blobs.";
     CHECK_EQ(predictions->shape(1), 1) << "Icorrect size of channels.";
 
     CHECK_EQ(propagate_down[0],true);
     CHECK_EQ(propagate_down[1],false);
+
+    if(m_timeSmoothing == false)
+        Backward_cpu_aux_2blobs(top, propagate_down, bottom); 
+    else
+        Backward_cpu_aux_4blobs(top, propagate_down, bottom);
+#if 0 // old code
+    int num = bottom[0]->shape(0);
+    int dim = predictions->shape(1)*predictions->shape(2)*predictions->shape(3);
+    CHECK_EQ(predictions->count(),dim*num);
+    int stride = predictions->shape(2);
+    Dtype norm_factor = m_predictionHeight*m_predictionWidth;
+    caffe_set(dim, Dtype(0), predictions->mutable_cpu_diff());
+
+    for (int i = 1; i < num; i++)
+    {
+
+        for (int height = 0; height < predictions->shape(2); height++)
+        {
+            for (int width = 0; width < predictions->shape(3); width++)
+            {
+                Dtype pred = predictions->data_at(i, 0, height, width);
+                Dtype prev_pred = predictions->data_at(i-1, 0, height, width);
+                Dtype mask = masks->data_at(i, 0, height, width);
+                Dtype prev_mask = masks->data_at(i-1, 0, height, width);
+                
+                Dtype diff_pred = pred - prev_pred;
+                Dtype diff_mask = mask - prev_mask;
+
+                int index = i*dim + height*stride + width;
+                LOG_IF(FATAL,index>=predictions->count())<<"index :"<<index<<" i: "<<i<<" dim: "<<dim<<" height :"<<height<<" stride: "<<stride<<" width :"<<width<<" count: "<<predictions->count();
+
+                Dtype grad = Dtype(2)*(diff_pred - diff_mask);
+                predictions->mutable_cpu_diff()[index] = grad;//norm_factor;
+            }
+        }
+    }
+#endif
+}
+
+template <typename Dtype>
+void MaskTemporalLossLayer<Dtype>::Backward_cpu_aux_2blobs(const vector<Blob<Dtype>*>& top,const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) 
+{
+    Blob<Dtype>* predictions = bottom[0];
+    Blob<Dtype>* masks = bottom[1];
 
     int num = bottom[0]->shape(0);
     int dim = predictions->shape(1)*predictions->shape(2)*predictions->shape(3);
@@ -122,6 +255,49 @@ void MaskTemporalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
             }
         }
     }
+}
+
+template <typename Dtype>
+void MaskTemporalLossLayer<Dtype>::Backward_cpu_aux_4blobs(const vector<Blob<Dtype>*>& top,const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) 
+{
+    Blob<Dtype>* predictions = bottom[0];
+    Blob<Dtype>* masks = bottom[1];
+    Blob<Dtype>* predictions_prev = bottom[2];
+    Blob<Dtype>* masks_prev = bottom[3];
+
+    int num = bottom[0]->shape(0);
+    int dim = predictions->shape(1)*predictions->shape(2)*predictions->shape(3);
+    CHECK_EQ(predictions->count(),dim*num);
+    int stride = predictions->shape(2);
+    // Dtype norm_factor = m_predictionHeight*m_predictionWidth;
+    // caffe_set(dim, Dtype(0), predictions->mutable_cpu_diff());
+    Dtype avg_grad =0.0;
+
+    for (int i = 0; i < num; i++)
+    {
+
+        for (int height = 0; height < predictions->shape(2); height++)
+        {
+            for (int width = 0; width < predictions->shape(3); width++)
+            {
+                Dtype pred = predictions->data_at(i, 0, height, width);
+                Dtype prev_pred = predictions_prev->data_at(i, 0, height, width);
+                Dtype mask = masks->data_at(i, 0, height, width);
+                Dtype prev_mask = masks_prev->data_at(i, 0, height, width);
+                
+                Dtype diff_pred = pred - prev_pred;
+                Dtype diff_mask = mask - prev_mask;
+
+                int index = i*dim + height*stride + width;
+                LOG_IF(FATAL,index>=predictions->count())<<"index :"<<index<<" i: "<<i<<" dim: "<<dim<<" height :"<<height<<" stride: "<<stride<<" width :"<<width<<" count: "<<predictions->count();
+
+                Dtype grad = Dtype(2)*(diff_pred - diff_mask);
+                avg_grad += std::abs(grad);
+                predictions->mutable_cpu_diff()[index] = grad;//norm_factor;
+            }
+        }
+    }
+    std::cout<<"GRAD AVG NORM TMP:"<<avg_grad/num<< "\n";
 }
 
 #ifdef CPU_ONLY

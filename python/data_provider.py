@@ -84,7 +84,7 @@ class DataProvider(object) :
 
         self.is_test_phaze = False
 
-    def get_tuple_data_point(self, image_path):
+    def get_tuple_data_point(self, image_path, isToAddToPathList = True):
 
         if not os.path.exists(image_path):
             if self.trimap_dir == None:
@@ -113,6 +113,7 @@ class DataProvider(object) :
         self.img_resized.append(img_r)
         path = os.path.splitext(image_path)
         gt_path = path[0] + self.gt_ext + path[1]
+        self.gt_path = gt_path
         if not os.path.isfile(gt_path):
             del self.img_resized[-1]
             del self.img_orig[-1]
@@ -135,6 +136,8 @@ class DataProvider(object) :
         split = os.sep.join(split)
         frame_num = re.findall(r'\d+', split)[-1]
         split = os.path.split(split)
+ 
+        self.frame_num = frame_num
 
         if self.trimap_dir != None:
             trimap_path = os.path.join(self.trimap_dir,
@@ -168,7 +171,8 @@ class DataProvider(object) :
                     elif coin <= 0.66:
                         img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
 
-            self.images_path_in_batch.append(image_path)
+            if isToAddToPathList:
+                self.images_path_in_batch.append(image_path)
             trimap_r = trimap_r.reshape([1, self.img_height, self.img_width])
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])
             img_r = img_r.transpose([2, 0, 1])

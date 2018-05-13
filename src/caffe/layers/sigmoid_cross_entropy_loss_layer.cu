@@ -96,6 +96,12 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     // Scale down gradient
     Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;
     caffe_gpu_scal(count, loss_weight, bottom_diff);
+    Dtype grad_avg =0.0;
+    for (int i =0;i<bottom[0]->count();i++)
+    {
+        grad_avg += std::abs(bottom[0]->cpu_diff()[i]);
+    }
+    std::cout<<"AVG GRAD CE: "<<grad_avg/bottom[0]->shape(0)<<std::endl;
   }
 }
 

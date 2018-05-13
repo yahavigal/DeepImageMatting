@@ -1,11 +1,8 @@
 import os
-import random
 import cv2
 import numpy as np
-from data_provider_original_ts import *
+from data_provider import *
 import ipdb
-from random import randint
-from collections import defaultdict
 
 class TimeSmoothDataProvider(DataProvider) :
 
