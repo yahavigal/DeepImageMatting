@@ -1,0 +1,4 @@
+python show_mean_channels.py --m ../or/fastPortraitMatting_1/snapshots/_iter_10000.caffemodel --p ../or/fastPortraitMatting_1/proto/train_time_smooth_1.prototxt > log.txt
+
+cat log.txt | grep conv_1 | grep 'channel 4'
+
