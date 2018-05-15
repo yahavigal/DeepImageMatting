@@ -6,15 +6,22 @@ import numpy as np
 import re
 import ipdb
 
-def find_data_root_ind(image,trimap_root):
-    ind = 0
-    image_split = image.split(os.sep)
-    trimap_split = trimap_root.split(os.sep)
-    while image_split[ind] == trimap_split[ind]:
-        ind +=1
-    return ind +1
-
 class DataProvider(object) :
+    
+    def find_data_root_ind(self, image,trimap_root):
+        ind = 0
+        image_split = image.split(os.sep)
+        if self.trimap_is_dir:
+    	    trimap_split = trimap_root.split(os.sep)
+    	    while image_split[ind] == trimap_split[ind]:
+               ind +=1
+            ind += 1
+        else:
+            if self.is_still: 
+                ind = image_split.index(self.key_still)                
+            else:	        
+		ind = image_split.index(self.key_video)
+        return ind 
 
     def create_list_from_file(self,input_file):
         if os.path.isdir(input_file):
@@ -55,6 +62,10 @@ class DataProvider(object) :
         self.images_list_test = self.create_list_from_file(images_dir_test)
 
         self.trimap_dir = trimap_dir
+        if os.path.isdir(self.trimap_dir):
+	    self.trimap_is_dir = True
+	else:
+	    self.trimap_is_dir = False
 
         if self.images_list_train is not None and shuffle_data == True:
             random.shuffle(self.images_list_train)
@@ -91,6 +102,12 @@ class DataProvider(object) :
                 return [None, None]
             else:
                 return [None, None, None]
+
+        if image_path.find(self.key_still) == -1:
+	    self.is_still = False
+        else:
+	    self.is_still = True
+
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype('float32')
         self.img_orig.append(img.copy())
@@ -131,17 +148,28 @@ class DataProvider(object) :
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         self.mask_resized.append(mask_r)
         if self.root_data_ind is None:
-            self.root_data_ind = find_data_root_ind(image_path, self.trimap_dir)
+            self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
         split = image_path.split(os.sep)[self.root_data_ind:]
         split = os.sep.join(split)
+        root_dir = image_path.split(os.sep)[0:self.root_data_ind]
+        root_dir = os.sep.join(root_dir)
         frame_num = re.findall(r'\d+', split)[-1]
         split = os.path.split(split)
  
         self.frame_num = frame_num
 
         if self.trimap_dir != None:
-            trimap_path = os.path.join(self.trimap_dir,
+            if self.trimap_is_dir:
+                trimap_path = os.path.join(self.trimap_dir,
                                        split[0], frame_num + self.trimap_ext + ".png")
+	    else:
+		if self.is_still:
+		    curr_key = self.key_still
+		else:
+		    curr_key = self.key_video       
+	       	root_depth = os.path.join(root_dir , curr_key + self.trimap_dir)
+                case_path = split[0].replace(curr_key + '/', '')
+                trimap_path = os.path.join(root_depth, case_path, frame_num + self.trimap_ext + ".png")		
 
             if not os.path.isfile(trimap_path):
                 del self.img_resized[-1]
@@ -210,7 +238,6 @@ class DataProvider(object) :
                     print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
                     if self.shuffle == True:
                         random.shuffle(list_)
-
             if self.trimap_dir == None:
                 img_r, mask_r = self.get_tuple_data_point(list_[self.list_ind])
             else:

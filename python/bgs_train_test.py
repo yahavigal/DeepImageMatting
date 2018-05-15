@@ -70,6 +70,7 @@ class bgs_test_train (object):
 
         self.threhold_param = threshold
         self.comment = comment
+        # trimap_dir can be or directory path ( standard till 15 May 2018) or subdirectory name that have to be changed in the image name in order to get path name
         if trimap_dir is not None:
             if "trimap" in trimap_dir.lower():
                 self.trimap_ext = "_triMap"
@@ -108,6 +109,9 @@ class bgs_test_train (object):
                                               threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
 
         self.data_provider.solver = self.solver
+        # current standard, change if standards changes
+        self.data_provider.key_still = 'images'
+        self.data_provider.key_video = 'videos'
 
         self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
         self.exp_name += "_threshold_{}".format(self.threhold_param)
@@ -501,7 +505,7 @@ if __name__ == "__main__":
                                     )
     parser.add_argument('--train_dir', type=str, required=True, help="train directory path or list")
     parser.add_argument('--test_dir', type=str, required=True, help="test directory path or list")
-    parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output")
+    parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output, trimap_dir can be or directory path ( standard till 15 May 2018) or subdirectory name extension that have to be changed in the image name in order to get path name")
     parser.add_argument('--solver', type=str, required=True,help="path to solver")
     parser.add_argument('--model', type=str, required=False, default = None, help="pre-trained weights path")
     parser.add_argument('--epochs', type=int, required=False, default = 60, help="number or epochs each epoch is equivalent to ")

@@ -69,7 +69,9 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
         trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
         trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
         image_trimap = Image.fromarray(trimap)
+        image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
         image_Image = Image.fromarray(image_orig.astype(np.uint8))
+
         trimap_blend = Image.blend(image_trimap,image_Image,0.8)
         plt.imshow(trimap_blend)
 
