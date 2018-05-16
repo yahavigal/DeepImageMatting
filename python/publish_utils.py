@@ -93,5 +93,5 @@ def publish_results(publish,trainer):
     create_dlc_file(os.path.join(trainer.results_path,trainer.deploy_file),
                     os.path.join(dst_path_candidate,"final.caffemodel"),
                     os.path.join(dst_path_candidate,trainer.deploy_file.replace('prototxt','dlc')))
-    publish_emails(publish,dst_path_candidate)
+    #publish_emails(publish,dst_path_candidate)
 

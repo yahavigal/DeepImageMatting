@@ -9,7 +9,7 @@ def convert_directory(dir_path):
     files = [os.path.join(dir_path,x) for x in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path,x)) and 'Color' in x]
     for image in files:
         image_buffer =open(image,'rb').read()
-        image_obj = Image.frombytes('RGBA',(640,480) ,image_buffer)
+        image_obj = Image.frombytes('RGBA',(848,480) ,image_buffer)
         image_obj = image_obj.convert('RGB')
 
         frame_num = re.findall(r'\d+',image)[-1]
@@ -20,6 +20,8 @@ def convert_directory(dir_path):
         image_obj.save(path_tosave_color,'PNG')
         depth_image_path = image.replace('Color','Depth')
         depth_image_path = depth_image_path.replace('color','z16')
+        if not os.path.exists(depth_image_path):
+            continue
         depth_image_buffer = open(depth_image_path,'rb').read()
         np_depth = np.frombuffer(depth_image_buffer, dtype=np.uint16)
         np_depth = np.reshape(np_depth,(480,848))
@@ -28,6 +30,8 @@ def convert_directory(dir_path):
         print(path_tosave_depth)
         cv2.imwrite(path_tosave_depth,np_depth)
         mask_image_path = image.replace('Color','Mask')
+        if not os.path.exists(mask_image_path):
+            continue
         mask_image_path = mask_image_path.replace('color','mask')
         mask_image_buffer = open(mask_image_path,'rb').read()
         np_mask = np.frombuffer(mask_image_buffer, dtype=np.uint8)

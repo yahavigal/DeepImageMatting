@@ -7,7 +7,7 @@ import re
 import ipdb
 
 class DataProvider(object) :
-    
+
     def find_data_root_ind(self, image,trimap_root):
         ind = 0
         image_split = image.split(os.sep)
@@ -17,11 +17,11 @@ class DataProvider(object) :
                ind +=1
             ind += 1
         else:
-            if self.is_still: 
-                ind = image_split.index(self.key_still)                
-            else:	        
+            if self.is_still:
+                ind = image_split.index(self.key_still)
+            else:
 		ind = image_split.index(self.key_video)
-        return ind 
+        return ind
 
     def create_list_from_file(self,input_file):
         if os.path.isdir(input_file):
@@ -155,7 +155,7 @@ class DataProvider(object) :
         root_dir = os.sep.join(root_dir)
         frame_num = re.findall(r'\d+', split)[-1]
         split = os.path.split(split)
- 
+
         self.frame_num = frame_num
 
         if self.trimap_dir != None:
@@ -166,10 +166,10 @@ class DataProvider(object) :
 		if self.is_still:
 		    curr_key = self.key_still
 		else:
-		    curr_key = self.key_video       
+		    curr_key = self.key_video
 	       	root_depth = os.path.join(root_dir , curr_key + self.trimap_dir)
                 case_path = split[0].replace(curr_key + '/', '')
-                trimap_path = os.path.join(root_depth, case_path, frame_num + self.trimap_ext + ".png")		
+                trimap_path = os.path.join(root_depth, case_path, frame_num + self.trimap_ext + ".png")
 
             if not os.path.isfile(trimap_path):
                 del self.img_resized[-1]
