@@ -147,8 +147,8 @@ class DataProvider(object) :
         self.mask_orig.append(mask.copy())
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         self.mask_resized.append(mask_r)
-        if self.root_data_ind is None:
-            self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
+        # if self.root_data_ind is None:
+        self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
         split = image_path.split(os.sep)[self.root_data_ind:]
         split = os.sep.join(split)
         root_dir = image_path.split(os.sep)[0:self.root_data_ind]
@@ -172,6 +172,7 @@ class DataProvider(object) :
                 trimap_path = os.path.join(root_depth, case_path, frame_num + self.trimap_ext + ".png")
 
             if not os.path.isfile(trimap_path):
+                print "depth file not found {} ".format(trimap_path)
                 del self.img_resized[-1]
                 del self.img_orig[-1]
                 del self.mask_resized[-1]

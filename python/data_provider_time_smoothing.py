@@ -146,7 +146,7 @@ class TimeSmoothDataProvider(DataProvider) :
 
 	    else:
                 print "current image does not exist {}".format(image_path_prev)
-                continue
+                break
  
  	return prev_pred_curr 
 

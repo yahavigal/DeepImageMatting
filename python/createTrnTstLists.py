@@ -1,6 +1,8 @@
 import os
 import ipdb
 from sklearn.utils import shuffle
+import itertools
+from sklearn.utils import resample
 
 
 def get_files_in_dirs(root_dirs, ext_to_save):
@@ -32,52 +34,100 @@ def shuffle_list_keep_img_num_in_sets( case_names, num_imgs_in_case, trn_cases_r
         num_tst_imgs = sum(num_imgs_in_case[num_trn_cases:])
         ratio = float(num_trn_imgs) / (num_tst_imgs + num_trn_imgs)
 	while count < num_trials and abs(ratio - trn_cases_ratio) > 0.05:
-	    case_names, num_imgs_in_case = shuffle(case_names, num_imgs_in_case)
+	    case_names, num_imgs_in_case = shuffle(case_names, num_imgs_in_case, random_state=(seed+count*100))
 	    num_trn_imgs = sum(num_imgs_in_case[0:num_trn_cases])
             num_tst_imgs = sum(num_imgs_in_case[num_trn_cases:])
             ratio = float(num_trn_imgs) / (num_tst_imgs + num_trn_imgs)
 	    count += 1
-
     trn_cases = case_names[0:num_trn_cases]
     tst_cases = case_names[num_trn_cases:]
+    trn_cases_numImgs = num_imgs_in_case[0:num_trn_cases]
 
-    return trn_cases, tst_cases
+    return trn_cases, tst_cases, trn_cases_numImgs
+
+def add_only_trn_images(case_dirs, num_frames_in_case, num_images_to_select, is4temporal):
+    num_imgs_per_case = num_images_to_select/ len(case_dirs)
+    file_names = []
+    seed = 6458
+    count = 1
+    strtInd = 1
+    if is4temporal:
+        strtInd = 4
+    for case in case_dirs:
+	file_list = get_files_in_dirs([case], "_color.png")
+	inds2take = resample(range(strtInd, len(file_list)), n_samples=num_imgs_per_case, random_state=seed*count)
+        count += 1
+	for ind in inds2take:
+	    file_names.append(file_list[ind])
+    
+    return file_names
 
 if __name__ == "__main__":
-    path_to_trn = "/media/or/1TB-data/train_images_sets_1_3.txt"
-    path_to_tst = "/media/or/1TB-data/test_images_sets_1_3.txt"
+    is4temporal = True 
+    path_to_trn = "/media/or/Data/Sets4multipleDataSets/temporal/trn_with_synth_1r_1s.txt"
+    path_to_tst = "/media/or/Data/Sets4multipleDataSets/temporal/tst_real_only.txt"
+    
+    trn_only_flags = [ False, True]
+    trn_only_data_part = 1 # 1 part real and 1 part syntetic	
+    root_dirs = [ "/media/or/Data/DataSet_3_new/videos", "/media/or/Data/cc_067_no_shifts/DataSet_2_composed/videos"]
+
     case_dir_names = []
-    num_frames_in_case = []	
-    root_dirs = [ "/media/or/1TB-data/DataSet_3/images", "/media/or/1TB-data/Data_Set_1_new/images/"]
-    for root_dir in root_dirs:
+    num_frames_in_case = []
+    case_dir_names_train_only = []
+    num_frames_in_case_train_only = []
+
+    for root_dir, trn_only_flag in itertools.izip_longest( root_dirs, trn_only_flags):
+        print root_dir, trn_only_flag
         for root, dirs, fileNames in os.walk(root_dir):
             if len(fileNames) > 0:
                 if os.path.exists(root):
-                   case_dir_names.append(root)
-		   num_files_in_dir = 0
-                   for fileName in fileNames:
-                       if fileName.find("_color.png") > 0:
-		          num_files_in_dir += 1
-                   num_frames_in_case.append(num_files_in_dir)
+		    num_files_in_dir = 0
+    		    for fileName in fileNames:
+                        if fileName.find("_color.png") > 0:
+		            num_files_in_dir += 1
+		    if trn_only_flag is None or trn_only_flag == False :
+                        case_dir_names.append(root)     
+                        num_frames_in_case.append(num_files_in_dir)
+		    else:
+		        case_dir_names_train_only.append(root)
+                        num_frames_in_case_train_only.append(num_files_in_dir)
 		else:
                     print root
 
     trn_cases_ratio = 0.8
     toKeepImgNum = False
-    trn_dirs, tst_dirs = shuffle_list_keep_img_num_in_sets( case_dir_names, num_frames_in_case, trn_cases_ratio, toKeepImgNum)
+    trn_dirs, tst_dirs, trn_dirs_numImgs = shuffle_list_keep_img_num_in_sets( case_dir_names, num_frames_in_case, trn_cases_ratio, toKeepImgNum)
 
-    print "number of cases all {} ".format(len( case_dir_names))
+    trn_only_list = []
+    if len(case_dir_names_train_only) > 0:
+	num_trn_imgs = sum(trn_dirs_numImgs)
+	num_imgs_to_select = trn_only_data_part*num_trn_imgs
+        trn_only_list = add_only_trn_images(case_dir_names_train_only, num_frames_in_case_train_only, num_imgs_to_select, is4temporal)
+
+    print "number of cases all real {} ".format(len( case_dir_names))
     print "number of cases train {} ".format(len( trn_dirs))
     print "number of cases test {} ".format(len( tst_dirs))
 
-    trn_list = get_files_in_dirs(trn_dirs, "_color.png")
-    write_list_to_file(trn_list, path_to_trn)
+
+    print "number of cases trn only {} ".format(len(case_dir_names_train_only))
+    print "number of images trn only {} ".format(len( trn_only_list))
     
-    tst_list = get_files_in_dirs(tst_dirs, "_color.png")
-    write_list_to_file(tst_list, path_to_tst)
+    trn_list = get_files_in_dirs(trn_dirs, "_color.png")
+    trn_list += trn_only_list
+    write_list_to_file(trn_list, path_to_trn)
 
     print "number of images train {} ".format(len( trn_list))
-    print "number of images test {} ".format(len( tst_list))
+    
+    if is4temporal:
+        write_list_to_file(tst_dirs, path_to_tst)
+	print "number of cases test {} ".format(len( tst_dirs))
+    else:
+        tst_list = get_files_in_dirs(tst_dirs, "_color.png")
+        write_list_to_file(tst_list, path_to_tst)
+        print "number of images test {} ".format(len( tst_list))        
+
+    
+    
 
 
 
