@@ -351,6 +351,14 @@ class bgs_test_train (object):
                     copy_last_masks(net,self.data_provider)
                     self.data_provider.iter_ind += 1
 
+    def remove_nans_from_list(list_in):
+        inds = np.argwhere(np.isnan(self.train_measures['mask_accuracy']))
+        ind_2_rem = np.squeeze(inds)
+        list_out = list_in.copy()
+        del list_out[i]
+
+	return list_out
+
     def test(self, is_save_fig = True):
 
         if self.solver is not None:
@@ -394,12 +402,16 @@ class bgs_test_train (object):
             for output in net.outputs:
                 if output == 'alpha_pred' or output == 'alpha_pred_s':
                     continue
+                
+                measure_curr = [x for x in self.test_measures[output] if ~np.isnan(x)]
                 str_test =  "{} average {} on test: {} variance {}".format(self.exp_name,output,
-                                                                           np.average(self.test_measures[output]),
-                                                                           np.var(self.test_measures[output]))
+                                                                           np.average(measure_curr),
+                                                                           np.var(measure_curr))
+		
+                measure_curr = [x for x in self.train_measures[output] if ~np.isnan(x)]
                 str_train =  "{} average {} on train: {} variance {}".format(self.exp_name,output,
-                                                                             np.average(self.train_measures[output]),
-                                                                             np.var(self.train_measures[output]))
+                                                                             np.average(measure_curr),
+                                                                             np.var(measure_curr))
                 print str_test
                 print str_train
                 summary.write(str_test + '\n')
