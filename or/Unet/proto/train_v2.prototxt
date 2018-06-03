@@ -1,4 +1,4 @@
-name: "Deep image matting"
+name: "Unet"
 
 input: "data"
 input_dim: 1

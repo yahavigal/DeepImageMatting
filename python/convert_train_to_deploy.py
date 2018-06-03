@@ -34,7 +34,7 @@ def convert_train_to_deploy(net_file, prefix_out_path=None):
 
     for i, layer in enumerate(new_net.layer):
         del layer.param[:]
-        if layer.type == u'Convolution':
+        if layer.type == u'Convolution' or layer.type == u'Deconvolution':
             layer.convolution_param.ClearField('bias_filler')
             layer.convolution_param.ClearField('weight_filler')
             pass
