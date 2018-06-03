@@ -19,6 +19,9 @@ def convert_train_to_deploy(net_file, prefix_out_path=None):
         if u'Loss' in layer.type:
             new_net.layer.remove(layer)
             continue
+        if u'Dropout' == layer.type:
+            new_net.layer.remove(layer)
+            continue
         if u'Accuracy' in layer.type:
             new_net.layer.remove(layer)
             continue
