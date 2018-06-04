@@ -5,15 +5,25 @@ import itertools
 from sklearn.utils import resample
 
 
-def get_files_in_dirs(root_dirs, ext_to_save):
-    file_names = []
+def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext = 'Video'):
+    file_names = []   
     for root_dir in root_dirs:
         for root, dirs, fileNames in os.walk(root_dir):
+            if root.find(videos_ext) > 0:
+                isVideo = True
+	    else:
+		isVideo = False
+            count = 0
 	    for fileName in fileNames:
                 if fileName.find(ext_to_save) > 0:
+		    count += 1
                     path_to_file = os.path.join(root, fileName)
                     if os.path.exists(path_to_file):
-                        file_names.append(path_to_file)
+			if isVideo:
+			    if count%5 == 0:
+                                file_names.append(path_to_file)
+                        else:
+                            file_names.append(path_to_file)
 		    else:
                         print path_to_file
     return file_names
@@ -63,13 +73,17 @@ def add_only_trn_images(case_dirs, num_frames_in_case, num_images_to_select, is4
     return file_names
 
 if __name__ == "__main__":
-    is4temporal = True 
-    path_to_trn = "/media/or/Data/Sets4multipleDataSets/temporal/trn_with_synth_1r_1s.txt"
-    path_to_tst = "/media/or/Data/Sets4multipleDataSets/temporal/tst_real_only.txt"
+
+    toDilateVideo = True
+    videos_ext = 'Video'
+
+    is4temporal = False
+    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/trn_DS3_dil_video.txt"
+    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/tst_DS3_dil_video.txt"
     
-    trn_only_flags = [ False, True]
+    trn_only_flags = [ False]
     trn_only_data_part = 1 # 1 part real and 1 part syntetic	
-    root_dirs = [ "/media/or/Data/DataSet_3_new/videos", "/media/or/Data/cc_067_no_shifts/DataSet_2_composed/videos"]
+    root_dirs = [ "/media/or/1TB-data/DataSet_3_new/images"]
 
     case_dir_names = []
     num_frames_in_case = []
@@ -112,7 +126,7 @@ if __name__ == "__main__":
     print "number of cases trn only {} ".format(len(case_dir_names_train_only))
     print "number of images trn only {} ".format(len( trn_only_list))
     
-    trn_list = get_files_in_dirs(trn_dirs, "_color.png")
+    trn_list = get_files_in_dirs(trn_dirs, "_color.png", toDilateVideo, videos_ext)
     trn_list += trn_only_list
     write_list_to_file(trn_list, path_to_trn)
 
@@ -122,7 +136,7 @@ if __name__ == "__main__":
         write_list_to_file(tst_dirs, path_to_tst)
 	print "number of cases test {} ".format(len( tst_dirs))
     else:
-        tst_list = get_files_in_dirs(tst_dirs, "_color.png")
+        tst_list = get_files_in_dirs(tst_dirs, "_color.png", toDilateVideo, videos_ext)
         write_list_to_file(tst_list, path_to_tst)
         print "number of images test {} ".format(len( tst_list))        
 
