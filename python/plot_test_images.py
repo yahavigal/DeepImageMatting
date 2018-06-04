@@ -47,10 +47,10 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
     mask_path = split +"_iou_{}.mask.png".format(iou)
     mask_path = os.path.join(results_path,mask_path)
     cv2.imwrite(mask_path,255*mask_r)
-
+    # ipdb.set_trace()
     if dump_bin ==True:
-        bin_path = fig_path.replace(".fig.jpg",".input.bin")
-        output_bin_path = fig_path.replace(".fig.jpg",".output.bin")
+        bin_path = fig_path.replace(".jpg",".input.bin")
+        output_bin_path = fig_path.replace(".jpg",".output.bin")
         dump = open(bin_path,'w')
         out_dump = open(output_bin_path,'w')
         for item in input_bin:
