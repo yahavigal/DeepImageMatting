@@ -287,7 +287,7 @@ layer {
   type: "BatchNorm"
   bottom: "conv_feathering_1"
   top: "bn_1"
-  batch_norm_param { use_global_stats: true}
+  batch_norm_param { use_global_stats: false}
 }
 layer {
   name: "relu_feathering_1"
