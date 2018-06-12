@@ -3,13 +3,13 @@ import ipdb
 from sklearn.utils import shuffle
 import itertools
 from sklearn.utils import resample
-
+import re
 
 def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext = 'Video'):
     file_names = []   
     for root_dir in root_dirs:
         for root, dirs, fileNames in os.walk(root_dir):
-            if root.find(videos_ext) > 0:
+            if re.search(videos_ext, root, re.IGNORECASE):
                 isVideo = True
 	    else:
 		isVideo = False
@@ -19,7 +19,7 @@ def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext 
 		    count += 1
                     path_to_file = os.path.join(root, fileName)
                     if os.path.exists(path_to_file):
-			if isVideo:
+			if isVideo and toDilateVideo:
 			    if count%5 == 0:
                                 file_names.append(path_to_file)
                         else:
@@ -52,17 +52,18 @@ def shuffle_list_keep_img_num_in_sets( case_names, num_imgs_in_case, trn_cases_r
     trn_cases = case_names[0:num_trn_cases]
     tst_cases = case_names[num_trn_cases:]
     trn_cases_numImgs = num_imgs_in_case[0:num_trn_cases]
+    tst_cases_numImgs = num_imgs_in_case[num_trn_cases:]
 
-    return trn_cases, tst_cases, trn_cases_numImgs
+    return trn_cases, tst_cases, trn_cases_numImgs, tst_cases_numImgs
 
 def add_only_trn_images(case_dirs, num_frames_in_case, num_images_to_select, is4temporal):
-    num_imgs_per_case = num_images_to_select/ len(case_dirs)
+    num_imgs_per_case = int( round( num_images_to_select/ len(case_dirs)))
     file_names = []
     seed = 6458
     count = 1
     strtInd = 1
     if is4temporal:
-        strtInd = 4
+        strtInd = 1 # 4
     for case in case_dirs:
 	file_list = get_files_in_dirs([case], "_color.png")
 	inds2take = resample(range(strtInd, len(file_list)), n_samples=num_imgs_per_case, random_state=seed*count)
@@ -75,25 +76,28 @@ def add_only_trn_images(case_dirs, num_frames_in_case, num_images_to_select, is4
 if __name__ == "__main__":
 
     toDilateVideo = True
-    videos_ext = 'Video'
+    videos_ext = 'video'
 
-    is4temporal = False
-    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/trn_DS3_dil_video.txt"
-    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/tst_DS3_dil_video.txt"
+    is4temporal = True
+    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/train_images_synt10_real90_dil.txt"
+    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/test_real_only_dil.txt"
     
-    trn_only_flags = [ False]
-    trn_only_data_part = 1 # 1 part real and 1 part syntetic	
-    root_dirs = [ "/media/or/1TB-data/DataSet_3_new/images"]
+    trn_only_flags = [ False, True]
+    trn_only_part = 0.1 # part of training only images to agg	
+    root_dirs = [ "/media/or/1TB-data/DataSet_3_new/images", "/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed/videos"]
 
     case_dir_names = []
     num_frames_in_case = []
     case_dir_names_train_only = []
     num_frames_in_case_train_only = []
 
+    trn_cases_ratio = 0.8
+    toKeepImgNum = False
+
     for root_dir, trn_only_flag in itertools.izip_longest( root_dirs, trn_only_flags):
         print root_dir, trn_only_flag
         for root, dirs, fileNames in os.walk(root_dir):
-            if len(fileNames) > 0:
+            if len(fileNames) > 0 and re.search(videos_ext, root, re.IGNORECASE):
                 if os.path.exists(root):
 		    num_files_in_dir = 0
     		    for fileName in fileNames:
@@ -108,14 +112,11 @@ if __name__ == "__main__":
 		else:
                     print root
 
-    trn_cases_ratio = 0.8
-    toKeepImgNum = False
-    trn_dirs, tst_dirs, trn_dirs_numImgs = shuffle_list_keep_img_num_in_sets( case_dir_names, num_frames_in_case, trn_cases_ratio, toKeepImgNum)
-
+    trn_dirs, tst_dirs, trn_dirs_numImgs, tst_dirs_numImgs = shuffle_list_keep_img_num_in_sets( case_dir_names, num_frames_in_case, trn_cases_ratio, toKeepImgNum)
     trn_only_list = []
     if len(case_dir_names_train_only) > 0:
 	num_trn_imgs = sum(trn_dirs_numImgs)
-	num_imgs_to_select = trn_only_data_part*num_trn_imgs
+	num_imgs_to_select = trn_only_part*(num_trn_imgs/(1 - trn_only_part))
         trn_only_list = add_only_trn_images(case_dir_names_train_only, num_frames_in_case_train_only, num_imgs_to_select, is4temporal)
 
     print "number of cases all real {} ".format(len( case_dir_names))

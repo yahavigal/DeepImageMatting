@@ -45,6 +45,7 @@ class DataProvider(object) :
 
         self.gt_ext = "_silhuette"
         self.trimap_ext = None
+        self.color_ext = "_color"
         if trimap_dir is not None:
             if "trimap" in trimap_dir.lower():
                 self.trimap_ext = "_triMap"
