@@ -9,17 +9,26 @@ def get_files_in_dir( root, fileNames, ext_to_save, toDilateVideo = False, video
         isVideo = True
     else:
 	isVideo = False
-    count = 0
+
     for fileName in fileNames:
         if fileName.find(ext_to_save) > 0:
-	    count += 1
-	    if isVideo and toDilateVideo:
-		if count%5 == 0:
-                    file_names.append(fileName)
-            else:
-                file_names.append(fileName)
+            file_names.append(fileName)
 
     file_names_sorted = sorted(file_names, key=lambda item: (int(item.partition('_')[0]) ) )
+
+    count = 0
+    file_names_dil = [] 
+    for fileName in file_names_sorted:
+	count += 1
+	if isVideo and toDilateVideo:
+	    if count%7 == 0:
+		file_names_dil.append(fileName)
+        else:
+            file_names_dil.append(fileName)
+
+    if len(file_names_dil) > 20:
+	file_names_sorted  = file_names_dil
+
     return file_names_sorted
    
 def replace_frameNum_in_image_path(image_path, frame_num_old, frame_num_new):        
@@ -55,23 +64,26 @@ def copy_and_rename_files( count, root, clr_name, clr_ext, gt_ext, depth_ext, sr
     if not os.path.exists(dir_depth_filled):
         os.makedirs(dir_depth_filled)
 
-    copyfile(path_2_clr, path_2_clr_new)
-    copyfile(path_2_gt, path_2_gt_new)
-    copyfile(path_2_depth, path_2_depth_new)
-    copyfile(path_2_depth_filled, path_2_depth_filled_new)    
+    if os.path.exists(path_2_depth_filled):
+        copyfile(path_2_clr, path_2_clr_new)
+        copyfile(path_2_gt, path_2_gt_new)
+        copyfile(path_2_depth, path_2_depth_new)
+        copyfile(path_2_depth_filled, path_2_depth_filled_new) 
+    else:
+	print "depth file not found {} ".format(path_2_depth_filled)   
 
 
 if __name__ == "__main__":
-    toDilateVideo = False
+    toDilateVideo = True
     videos_ext = 'Video'
 
-    path_to_src = "/media/or/1TB-data/DataSet_1_new/images"
-    main_ext = "images"
+    path_to_src = "/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed/videos"
+    main_ext = "videos"
     
     depth_filled_ext = "_depthF"    
 
-    src_main_dir = "DataSet_1_new"
-    dst_main_dir = "DataSet_1_new_renamed_temporal"
+    src_main_dir = "cc_067_no_shifts/DataSet_2_composed"
+    dst_main_dir = "cc_067_no_shifts_temporal_dil_7"
 
     clr_ext = "_color.png"
     gt_ext = "_color_silhuette.png"
