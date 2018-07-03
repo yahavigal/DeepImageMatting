@@ -66,7 +66,7 @@ class TimeSmoothDataProvider(DataProvider) :
 	    curr_key = self.key_video
 	
 	depth_path = image_path.replace(curr_key, curr_key + self.trimap_dir)
-        depth_path = image_path.replace(self.color_ext, self.trimap_ext)
+        depth_path = depth_path.replace(self.color_ext, self.trimap_ext)
 	if not os.path.exists(depth_path):
 	     print "TM depth file not found {} ".format(depth_path)
 	       	
