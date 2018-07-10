@@ -63,10 +63,14 @@ def add_only_trn_images(case_dirs, num_images_to_select, is4temporal):
     count = 1
     strtInd = 1
     if is4temporal:
-        strtInd = 1 # 4
+        strtInd = 0 # 4
     for case in case_dirs:
 	file_list = get_files_in_dirs([case], "_color.png")
-	inds2take = resample(range(strtInd, len(file_list)), n_samples=num_imgs_per_case, random_state=seed*count)
+        samples = min(num_imgs_per_case, len(file_list) )
+	if samples < num_imgs_per_case:
+	    print "number of images in case {} less then required {} {}".format(case, samples, num_imgs_per_case)
+	    
+	inds2take = resample(range(strtInd, len(file_list)), n_samples=samples, random_state=seed*count)
         count += 1
 	for ind in inds2take:
 	    file_names.append(file_list[ind])
@@ -102,14 +106,14 @@ if __name__ == "__main__":
     videos_ext = 'video'
 
     is4temporal = True
-    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/train_images_real60_synt10_syntDil3_10_syntDil5_10_syntDil7_10.txt"
-    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/test_real_only_v2.txt"
+    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/train_images_real60_synt20_syntDil3_20_syntDil5_20_syntDil7_20.txt"
+    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/test_real_only_v3.txt"
     
     trn_only_flags = [ False, True]
-    trn_only_part = 0.1 # part of training only images to agg	
+    trn_only_part = 0.2 # part of training only images to agg	
     root_dirs = [ "/media/or/1TB-data/DataSet_3_new_wo_b8/images", "/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed/videos"]
 
-    trn_only_dil_parts = [0.1, 0.1, 0.1]
+    trn_only_dil_parts = [0.2, 0.2, 0.2]
     root_dirs_dil = [ "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_3/videos", "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_5/videos", "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_7/videos"]
 
     case_dir_names = []

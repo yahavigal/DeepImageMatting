@@ -1,0 +1,2 @@
+ ls --ignore "*.mask.png" --ignore "*.all.fig.jpg" --ignore "*txt" | xargs eog
+
