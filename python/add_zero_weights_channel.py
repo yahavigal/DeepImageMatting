@@ -39,7 +39,7 @@ def add_zeros_to_layer(proto, model, layer_name, num_rep):
         if num_rep is not None:
             for regex in num_rep:
                 r = re.compile(regex)
-                layers += [x for x in net.params.keys() if r.match(x) and find_layer_type(net,x) in supproted_types]
+                layers += [x for x in net.params.keys() if r.match(x) and find_layer_type(net,x) in supproted_types and x not in layers]
 
     for layer in layers:
         if not layer in net.params:
@@ -60,7 +60,7 @@ def add_zeros_to_layer(proto, model, layer_name, num_rep):
                 layer_params = net.params[layer]
                 shape = layer_params[0].data.shape[2:]
                 z = np.random.normal(loc=0,scale=0.02,size=shape)
-                new_data = np.insert(layer_params[0].data,1,z, axis =1)
+                new_data = np.insert(layer_params[0].data,layer_params[0].data.shape[1],z, axis =1)
                 layer_params[0].reshape(*new_data.shape)
                 layer_params[0].data[...] = new_data
 
