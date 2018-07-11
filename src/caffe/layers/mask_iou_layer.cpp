@@ -83,10 +83,11 @@ namespace caffe
                 }
 
                 Dtype iou = intersectionPixels/unionPixels;
+                if (unionPixels ==0)
+                    iou = Dtype(1);
                 //std::cout<<"iou= "<<iou<<"\n";
                 batchIOU += iou;
             }
-
             top[0]->mutable_cpu_data()[0] = batchIOU/num;
         }
 
