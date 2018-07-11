@@ -191,7 +191,7 @@ class bgs_test_train (object):
         #    self.solver.net.forward()
         #else:
         #    self.solver.step(1)
-        
+
         self.solver.step(1)
 	#ipdb.set_trace() # to see data in net including gradiets and data
 
@@ -241,7 +241,7 @@ class bgs_test_train (object):
             for self.data_provider.current_clip_ind in xrange(0, len(self.data_provider.current_clip_list)):
                 print self.data_provider.current_clip_ind
                 image_path = self.data_provider.current_clip_list[self.data_provider.current_clip_ind];
-		
+
                 img_r, mask_r = self.data_provider.get_test_data( 1, image_path, pred_prev_r, mask_prev_r)
                 if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
                     continue
@@ -250,7 +250,7 @@ class bgs_test_train (object):
 	            pred_prev_r = np.zeros_like(mask_r)
 
 	        if mask_prev_r is None:
-	            mask_prev_r = np.zeros_like(mask_r)               
+	            mask_prev_r = np.zeros_like(mask_r)
 
                 if img_r.ndim < 4:
 		    img_r = np.expand_dims(img_r, axis = 0)
@@ -261,14 +261,14 @@ class bgs_test_train (object):
                 if pred_prev_r.ndim < 4:
                     pred_prev_r = np.expand_dims(pred_prev_r, axis = 0)
 
-                
+
                 net.blobs[net.inputs[0]].reshape(*img_r.shape)
                 net.blobs[net.inputs[1]].reshape(*mask_r.shape)
                 net.blobs[net.inputs[0]].data[...]= img_r
                 net.blobs[net.inputs[1]].data[...]= mask_r
                 net.blobs[net.inputs[2]].reshape(*mask_prev_r.shape)
                 net.blobs[net.inputs[2]].data[...]= mask_prev_r
-                net.blobs[net.inputs[3]].reshape(*pred_prev_r.shape)            
+                net.blobs[net.inputs[3]].reshape(*pred_prev_r.shape)
                 net.blobs[net.inputs[3]].data[...]= pred_prev_r
 
                 input_bin = img_r.flatten().tolist()
@@ -276,7 +276,7 @@ class bgs_test_train (object):
                 start = current_milli_time()
                 net.forward()
                 times.append(current_milli_time() - start)
-            
+
                 mask_prev_r = mask_r.copy()
                 if 'alpha_pred_s' in net.blobs.keys():
             	    pred_prev_r = net.blobs['alpha_pred_s'].data[0].copy()
@@ -286,7 +286,7 @@ class bgs_test_train (object):
                 single_image = img_r
                 single_mask = mask_r
                 image = self.data_provider.current_clip_list[self.data_provider.current_clip_ind]
-                
+
                 test_log_file.write(image)
                 for output in net.outputs:
                     if output == 'alpha_pred' or output == 'alpha_pred_s':
@@ -336,6 +336,16 @@ class bgs_test_train (object):
                     if i==0:
                         self.test_measures[output].append(net.blobs[output].data.flatten()[0])
                     test_log_file.write(" {}".format(self.test_measures[output][-1]))
+                for fs_metric in self.fs_metrics:
+                    preds_blob = net.blobs['alpha_pred_s'].data.copy()
+                    fs_w = self.data_provider.mask_orig[0].shape[1]
+                    fs_h = self.data_provider.mask_orig[0].shape[0]
+                    cv_preds = cv2.resize(np.squeeze(preds_blob.transpose([2,3,0,1])),(fs_w,fs_h))
+                    #cv_preds = cv_preds.transpose([2,0,1])
+                    cv_preds = np.expand_dims(cv_preds,axis=0)
+                    self.test_measures[fs_metric[0]].append(fs_metric[1](np.array(self.data_provider.mask_orig),cv_preds))
+                    test_log_file.write(" {}".format(fs_metric[0],self.test_measures[fs_metric[0]][-1]))
+
                 test_log_file.write('\n')
 
                 iou = int(100*self.test_measures['mask_accuracy'][-1])
@@ -402,16 +412,12 @@ class bgs_test_train (object):
             for output in net.outputs:
                 if output == 'alpha_pred' or output == 'alpha_pred_s':
                     continue
-                
-                measure_curr = [x for x in self.test_measures[output] if ~np.isnan(x)]
                 str_test =  "{} average {} on test: {} variance {}".format(self.exp_name,output,
-                                                                           np.average(measure_curr),
-                                                                           np.var(measure_curr))
-		
-                measure_curr = [x for x in self.train_measures[output] if ~np.isnan(x)]
+                                                                           np.average(self.test_measures[output]),
+                                                                           np.var(self.test_measures[output]))
                 str_train =  "{} average {} on train: {} variance {}".format(self.exp_name,output,
-                                                                             np.average(measure_curr),
-                                                                             np.var(measure_curr))
+                                                                             np.average(self.train_measures[output]),
+                                                                             np.var(self.train_measures[output]))
                 print str_test
                 print str_train
                 summary.write(str_test + '\n')
@@ -528,7 +534,7 @@ if __name__ == "__main__":
     parser.add_argument('--publish', type=str,required=False, default = None, help= "copy results folder into a share drive")
     parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
                         help= "additional test on other (real) data in case of use trimap or depth you should also add it")
-    parser.add_argument('--temporal', choices = ['temporal', 'time_smooth'], required = False, default = None, 
+    parser.add_argument('--temporal', choices = ['temporal', 'time_smooth'], required = False, default = None,
                         help="train with temporal smoothness consistency: possible values are: temporal - Omer, time_smooth - Alexandra")
     parser.add_argument('--comment', type=str, required='--publish' in sys.argv ,default='', help="comment to explain your extra details of experiment mandatory for publish")
     parser.add_argument('--benchmark', action='store_true', help="trigger windows (and android) benchmark valid only in publish")
