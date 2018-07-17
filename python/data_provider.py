@@ -4,8 +4,27 @@ import cv2
 import data_augmentation
 import numpy as np
 import re
+import multiprocessing
 import ipdb
 
+def worker(data_provider,images,batch,masks):
+    try:
+        for image_path in images:
+            if data_provider.trimap_dir == None:
+                img_r, mask_r = data_provider.get_tuple_data_point(image_path)
+            else:
+                img_r, mask_r, trimap_r = data_provider.get_tuple_data_point(image_path)
+            #if img_r is None or mask_r is None:
+                #del list_[self.list_ind]
+                #continue
+
+                img_r = np.concatenate((img_r, trimap_r), axis=0)
+            batch.append(img_r)
+            masks.append(mask_r)
+    except:
+        pass
+
+manager = multiprocessing.Manager()
 class DataProvider(object) :
 
     def find_data_root_ind(self, image,trimap_root):
@@ -63,10 +82,11 @@ class DataProvider(object) :
         self.images_list_test = self.create_list_from_file(images_dir_test)
 
         self.trimap_dir = trimap_dir
-        if os.path.isdir(self.trimap_dir):
-	    self.trimap_is_dir = True
-	else:
-	    self.trimap_is_dir = False
+        if trimap_dir is not None:
+            if os.path.isdir(self.trimap_dir):
+                self.trimap_is_dir = True
+            else:
+                self.trimap_is_dir = False
 
         if self.images_list_train is not None and shuffle_data == True:
             random.shuffle(self.images_list_train)
@@ -83,18 +103,11 @@ class DataProvider(object) :
         self.img_orig = []
         self.trimap_orig = []
         self.mask_orig = []
-
-        self.img_resized = []
-        self.trimap_resized = None
-        self.mask_resized = []
-
         self.images_path_in_batch = []
 
-        self.img_transposed = None
-        self.trimap_transposed = None
-        self.mask_transposed = None
-
         self.is_test_phaze = False
+        self.key_still = 'images'
+        self.key_video = 'videos'
 
     def get_tuple_data_point(self, image_path, isToAddToPathList = True):
 
@@ -110,25 +123,27 @@ class DataProvider(object) :
 	    self.is_still = True
 
         img = cv2.imread(image_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype('float32')
-        self.img_orig.append(img.copy())
+        if self.is_test_phaze == True:
+            self.img_orig.append(cv2.cvtColor(img.copy(),cv2.COLOR_BGR2RGB).astype('float32'))
 
+
+        img_r = cv2.resize(img, (self.img_width, self.img_height))
+        img_r = img_r[...,::-1].astype('float32')
         if self.use_data_aug == True:
 
             # image based data augmentation
             coin = np.random.uniform(0, 1, 1)
             if coin <= 0.25:
-                img = data_augmentation.color_jitter(img)
+                img_r = data_augmentation.color_jitter(img_r)
             elif coin <= 0.5:
-                img = data_augmentation.PCA_noise(img)
+                img_r = data_augmentation.PCA_noise(img_r)
             elif coin <= 0.75:
-                img = data_augmentation.gamma_correction(img)
+                img_r = data_augmentation.gamma_correction(img_r)
 
         # subtract mean
+        img_r -= np.array([104, 117, 123], dtype=np.float32)
 
-        img -= np.array([104, 117, 123], dtype=np.float32)
-        img_r = cv2.resize(img, (self.img_width, self.img_height))
-        self.img_resized.append(img_r)
+        #self.img_resized.append(img_r)
         path = os.path.splitext(image_path)
         gt_path = path[0] + self.gt_ext + path[1]
         self.gt_path = gt_path
@@ -145,19 +160,22 @@ class DataProvider(object) :
             mask[mask >= 256*self.threshold_param] = 1
         else:
             mask = np.divide(mask,255.0)
-        self.mask_orig.append(mask.copy())
+        if self.is_test_phaze == True:
+            self.mask_orig.append(mask.copy().astype('float32'))
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
-        self.mask_resized.append(mask_r)
-        # if self.root_data_ind is None:
-        self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
-        split = image_path.split(os.sep)[self.root_data_ind:]
-        split = os.sep.join(split)
-        root_dir = image_path.split(os.sep)[0:self.root_data_ind]
-        root_dir = os.sep.join(root_dir)
-        frame_num = re.findall(r'\d+', split)[-1]
-        split = os.path.split(split)
+        if self.trimap_dir is not None:
+            self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
+            split = image_path.split(os.sep)[self.root_data_ind:]
+            split = os.sep.join(split)
+            root_dir = image_path.split(os.sep)[0:self.root_data_ind]
+            root_dir = os.sep.join(root_dir)
+            frame_num = re.findall(r'\d+', split)[-1]
+            split = os.path.split(split)
 
-        self.frame_num = frame_num
+            self.frame_num = frame_num
+
+        if isToAddToPathList and self.is_test_phaze == True:
+            self.images_path_in_batch.append(image_path)
 
         if self.trimap_dir != None:
             if self.trimap_is_dir:
@@ -174,20 +192,18 @@ class DataProvider(object) :
 
             if not os.path.isfile(trimap_path):
                 print "depth file not found {} ".format(trimap_path)
-                del self.img_resized[-1]
                 del self.img_orig[-1]
-                del self.mask_resized[-1]
                 del self.mask_orig[-1]
                 return [None, None, None]
 
             trimap = cv2.imread(trimap_path, 0)
             if trimap is None:
-                del self.img_resized[-1]
                 del self.img_orig[-1]
-                del self.mask_resized[-1]
                 del self.mask_orig[-1]
                 return [None, None, None]
-            self.trimap_orig.append(trimap.copy())
+
+            if self.is_test_phaze == True:
+                self.trimap_orig.append(trimap.copy())
             trimap_r = cv2.resize(trimap, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
 
             if self.use_data_aug == True:
@@ -201,8 +217,6 @@ class DataProvider(object) :
                     elif coin <= 0.66:
                         img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
 
-            if isToAddToPathList:
-                self.images_path_in_batch.append(image_path)
             trimap_r = trimap_r.reshape([1, self.img_height, self.img_width])
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])
             img_r = img_r.transpose([2, 0, 1])
@@ -222,38 +236,50 @@ class DataProvider(object) :
     def get_batch(self,list_,batch_size = None):
         if batch_size is None:
             batch_size = self.batch_size
-        batch = []
-        masks = []
+        batch = manager.list()
+        masks = manager.list()
         self.img_orig =[]
-        self.img_resized=[]
         self.mask_orig =[]
-        self.mask_resized =[]
         self.trimap_orig =[]
         self.images_path_in_batch = []
-        while len(batch) < batch_size:
+        num_of_jobs = 8
+        if self.is_test_phaze == True:
+          num_of_jobs = 1
+        samples_per_job = batch_size/num_of_jobs
+        jobs= []
+        for i in range(num_of_jobs):
             if self.list_ind >= len(list_):
                 self.epoch_ind += 1
                 self.list_ind = 0
                 if self.is_test_phaze == True:
-                    return batch, masks
+                    return np.array(batch), np.array(masks)
                 else:
                     print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
                     if self.shuffle == True:
                         random.shuffle(list_)
-            if self.trimap_dir == None:
-                img_r, mask_r = self.get_tuple_data_point(list_[self.list_ind])
+            jobs_pers_p = []
+            while len(jobs_pers_p) < samples_per_job:
+                jobs_pers_p.append(list_[self.list_ind])
+                self.list_ind += 1
+                if self.list_ind >= len(list_):
+                    self.epoch_ind += 1
+                    self.list_ind = 0
+                    if self.is_test_phaze == True:
+                        return np.array(batch), np.array(masks)
+                    else:
+                        print "starting from beginning of the list epoch {} finished".format(self.epoch_ind)
+                        if self.shuffle == True:
+                            random.shuffle(list_)
+            if self.is_test_phaze==False:
+                p = multiprocessing.Process(target=worker, args=(self,jobs_pers_p,batch,masks))
+                p.start()
+                jobs.append(p)
             else:
-                img_r, mask_r, trimap_r = self.get_tuple_data_point(list_[self.list_ind])
-            if img_r is None or mask_r is None:
-                del list_[self.list_ind]
-                continue
+                worker(self,jobs_pers_p,batch,masks)
 
-            if 'trimap_r' in locals():
-                img_r = np.concatenate((img_r, trimap_r), axis=0)
+        for job in jobs:
+            job.join()
 
-            batch.append(img_r)
-            masks.append(mask_r)
-            self.list_ind += 1
 
         return np.array(batch), np.array(masks)
 
@@ -262,6 +288,4 @@ class DataProvider(object) :
 
     def get_test_data(self,batch_size = 1):
         return self.get_batch(self.images_list_test,batch_size)
-
-
 

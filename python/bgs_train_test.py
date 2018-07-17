@@ -394,7 +394,6 @@ class bgs_test_train (object):
         if self.use_tf_inference == True and self.data_provider.images_list_train is not None:
             for i in xrange(5000):
                 x,y = self.data_provider.get_batch_data(self.data_provider.batch_size)
-                ipdb.set_trace()
                 _, loss, _  = self.tf_trainer.step(x,y)
                 print "loss for fine tune is: {} IOU is: {}".format(loss,iou)
             self.tf_trainer.save()

@@ -38,7 +38,11 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
     overlay = np.multiply(image_orig/np.max(image_orig),mask_r[:,:,np.newaxis])
     mattImage = overlay + bg
 
-    last_sep = [m.start() for m in re.finditer(r'{}'.format(os.sep),image_path)][data_provider.root_data_ind-1]
+    if data_provider.root_data_ind is not None:
+        last_sep = [m.start() for m in re.finditer(r'{}'.format(os.sep),image_path)][data_provider.root_data_ind-1]
+    else:
+        last_sep = [m.start() for m in re.finditer(r'{}'.format(os.sep),image_path)][3]
+
     split = os.path.splitext(image_path[last_sep:].replace(os.sep,"_"))[0]
     fig_path = split+"_iou_{}.jpg".format(iou)
     fig_path = os.path.join(results_path,fig_path)
@@ -47,7 +51,6 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
     mask_path = split +"_iou_{}.mask.png".format(iou)
     mask_path = os.path.join(results_path,mask_path)
     cv2.imwrite(mask_path,255*mask_r)
-    # ipdb.set_trace()
     if dump_bin ==True:
         bin_path = fig_path.replace(".jpg",".input.bin")
         output_bin_path = fig_path.replace(".jpg",".output.bin")
@@ -61,19 +64,21 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
         out_dump.close()
 
     if view_all == True:
-        fig = plt.figure(figsize = (8,8))
-        plt.subplot(2,2,1)
-        plt.axis('off')
-        plt.title("trimap input")
-        trimap = data_provider.trimap_orig[ind_in_batch]
-        trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
-        trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
-        image_trimap = Image.fromarray(trimap)
-        image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
-        image_Image = Image.fromarray(image_orig.astype(np.uint8))
 
-        trimap_blend = Image.blend(image_trimap,image_Image,0.8)
-        plt.imshow(trimap_blend)
+        image_Image = Image.fromarray(image_orig.astype(np.uint8))
+        if data_provider.trimap_ext  is not None:
+            fig = plt.figure(figsize = (8,8))
+            plt.subplot(2,2,1)
+            plt.axis('off')
+            plt.title("trimap input")
+            trimap = data_provider.trimap_orig[ind_in_batch]
+            trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
+            trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
+            image_trimap = Image.fromarray(trimap)
+            image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
+
+            trimap_blend = Image.blend(image_trimap,image_Image,0.8)
+            plt.imshow(trimap_blend)
 
         plt.subplot(2,2,2)
         plt.axis('off')
