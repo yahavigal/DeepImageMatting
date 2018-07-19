@@ -6,6 +6,8 @@ def fs_mask_accuracy(gt, pred, threshold = 0.5):
     #ipdb.set_trace()
     intersection = np.sum(np.bitwise_and(gt > threshold,pred > threshold))
     union = np.sum(np.bitwise_or(gt > threshold,pred > threshold))
+    if union == 0:
+        return 1.0
     return intersection/float(union)
 
 def fs_mask_gradient(gt, pred):
