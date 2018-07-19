@@ -5,7 +5,7 @@ import itertools
 from sklearn.utils import resample
 import re
 
-def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext = 'Video'):
+def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext = 'Video', dillStep = 5):
     file_names = []   
     for root_dir in root_dirs:
         for root, dirs, fileNames in os.walk(root_dir):
@@ -20,7 +20,7 @@ def get_files_in_dirs(root_dirs, ext_to_save, toDilateVideo = False, videos_ext 
                     path_to_file = os.path.join(root, fileName)
                     if os.path.exists(path_to_file):
 			if isVideo and toDilateVideo:
-			    if count%5 == 0:
+			    if count%dillStep == 0:
                                 file_names.append(path_to_file)
                         else:
                             file_names.append(path_to_file)
@@ -56,14 +56,12 @@ def shuffle_list_keep_img_num_in_sets( case_names, num_imgs_in_case, trn_cases_r
 
     return trn_cases, tst_cases, trn_cases_numImgs, tst_cases_numImgs
 
-def add_only_trn_images(case_dirs, num_images_to_select, is4temporal):
+def add_images_by_number(case_dirs, num_images_to_select):
     num_imgs_per_case = int( round( num_images_to_select/ len(case_dirs)))
     file_names = []
     seed = 6458
     count = 1
-    strtInd = 1
-    if is4temporal:
-        strtInd = 0 # 4
+    strtInd = 0
     for case in case_dirs:
 	file_list = get_files_in_dirs([case], "_color.png")
         samples = min(num_imgs_per_case, len(file_list) )
@@ -102,83 +100,130 @@ def change_cases_to_dilated(trn_only_main_dirs, case_dirs, trn_only_part_final, 
 
 if __name__ == "__main__":
 
-    toDilateVideo = False
+    toDilateVideo = True
+    dillStep = 5
     videos_ext = 'video'
 
-    is4temporal = True
-    path_to_trn = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/train_images_real60_synt20_syntDil3_20_syntDil5_20_syntDil7_20.txt"
-    path_to_tst = "/media/or/1TB-data/Sets4multipleDataSets/temporal_lists/test_real_only_v3.txt"
-    
-    trn_only_flags = [ False, True]
-    trn_only_part = 0.2 # part of training only images to agg	
-    root_dirs = [ "/media/or/1TB-data/DataSet_3_new_wo_b8/images", "/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed/videos"]
+    stillsSetDirMain = "/media/or/1TB-data/Test/"
+    videosSetDirMain = "/media/or/1TB-data/Test/temporal_lists/"
 
-    trn_only_dil_parts = [0.2, 0.2, 0.2]
+    path_to_trn_stills = os.path.join(stillsSetDirMain, "train_all_sets.txt")
+    path_to_tst_stills = os.path.join(stillsSetDirMain, "test_all_sets.txt")
+
+    path_to_trn_videos = os.path.join(videosSetDirMain, "train_images_real60_synt10_syntDil3_10_syntDil5_10_syntDil7_10.txt")
+    path_to_tst_videos_dirs = os.path.join(videosSetDirMain, "test_real_only_dirs.txt")
+    path_to_tst_videos_files = os.path.join(videosSetDirMain, "test_real_only_files.txt")
+    
+    trn_only_flags = [ False, False, True]
+    trn_only_part_stills = 0.2 # part of training only images to add to video set
+    trn_only_part_videos = 0.1 # part of training only images to add to video set	
+    # !!! Do not forget to add data set 1 renamed for temporal manually
+    root_dirs = [ "/media/or/1TB-data/DataSet_1_new/images","/media/or/1TB-data/DataSet_3_new/images", "/media/or/1TB-data/cc_067_no_shifts/DataSet_2_composed/videos"] 
+
+    trn_only_dil_parts = [0.1, 0.1, 0.1]
     root_dirs_dil = [ "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_3/videos", "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_5/videos", "/media/or/1TB-data/cc_067_no_shifts_temporal_dil_7/videos"]
 
-    case_dir_names = []
-    num_frames_in_case = []
-    case_dir_names_train_only = []
+    case_dir_names_stills = []
+    num_frames_in_case_stills = []
+    case_dir_names_train_only_stills = []
+    
+    case_dir_names_videos = []
+    num_frames_in_case_videos = []
+    case_dir_names_train_only_videos = []
 
     trn_cases_ratio = 0.8
-    toKeepImgNum = False
+    toKeepImgNum_stills = True
+    toKeepImgNum_videos = False
 
-    trn_only_main_dirs = []
+    trn_only_main_dirs_video = []
     for root_dir, trn_only_flag in itertools.izip_longest( root_dirs, trn_only_flags):
         print root_dir, trn_only_flag
-	if trn_only_flag:
-	    trn_only_main_dirs.append(root_dir)
+	if trn_only_flag and re.search(videos_ext, root_dir, re.IGNORECASE):
+	    trn_only_main_dirs_video.append(root_dir)
         for root, dirs, fileNames in os.walk(root_dir):
-            if len(fileNames) > 0 and re.search(videos_ext, root, re.IGNORECASE):
+            if re.search(videos_ext, root, re.IGNORECASE):
+                isVideo = True
+	    else:
+		isVideo = False
+            if len(fileNames) > 0:
                 if os.path.exists(root):
 		    num_files_in_dir = 0
     		    for fileName in fileNames:
                         if fileName.find("_color.png") > 0:
 		            num_files_in_dir += 1
 		    if trn_only_flag is None or trn_only_flag == False :
-                        case_dir_names.append(root)     
-                        num_frames_in_case.append(num_files_in_dir)
+                        if isVideo == True:
+                            case_dir_names_videos.append(root)
+                            num_frames_in_case_videos.append(num_files_in_dir)
+                        else:
+                            case_dir_names_stills.append(root)     
+                            num_frames_in_case_stills.append(num_files_in_dir)
 		    else:
-		        case_dir_names_train_only.append(root)
+                        if isVideo == True:
+                            case_dir_names_train_only_videos.append(root)
+                        else:
+		            case_dir_names_train_only_stills.append(root)
 		else:
                     print root
 
-    trn_dirs, tst_dirs, trn_dirs_numImgs, tst_dirs_numImgs = shuffle_list_keep_img_num_in_sets( case_dir_names, num_frames_in_case, trn_cases_ratio, toKeepImgNum)
-    trn_only_list = []
-    if len(case_dir_names_train_only) > 0:
-	num_trn_imgs = sum(trn_dirs_numImgs)
+    trn_dirs_stills, tst_dirs_stills, trn_dirs_numImgs_stills, tst_dirs_numImgs_stills = shuffle_list_keep_img_num_in_sets( case_dir_names_stills, num_frames_in_case_stills, trn_cases_ratio, toKeepImgNum_stills)
+    trn_dirs_videos, tst_dirs_videos, trn_dirs_numImgs_videos, tst_dirs_numImgs_videos = shuffle_list_keep_img_num_in_sets( case_dir_names_videos, num_frames_in_case_videos, trn_cases_ratio, toKeepImgNum_videos)
+
+    trn_only_list_stills = []
+    if len(case_dir_names_train_only_stills) > 0:
+	num_trn_imgs_stills = sum(trn_dirs_numImgs_stills)
+	num_imgs_to_select_stills = trn_only_part_stills*(num_trn_imgs_stills/(1 - trn_only_part_stills))
+        trn_only_list_stills = add_images_by_number(case_dir_names_train_only_stills, num_imgs_to_select_stills)
+
+    trn_only_list_videos = []
+    if len(case_dir_names_train_only_videos) > 0:
+	num_trn_imgs_videos = sum(trn_dirs_numImgs_videos)
 	if len(trn_only_dil_parts) > 0:
-	    trn_only_part_final = trn_only_part + sum(trn_only_dil_parts)
-	    case_dir_names_train_only = \
-		change_cases_to_dilated(trn_only_main_dirs, case_dir_names_train_only, trn_only_part_final, trn_only_dil_parts, root_dirs_dil)
+	    trn_only_part_final = trn_only_part_videos + sum(trn_only_dil_parts)
+	    case_dir_names_train_only_videos = \
+		change_cases_to_dilated(trn_only_main_dirs_video, case_dir_names_train_only_videos, trn_only_part_final, trn_only_dil_parts, root_dirs_dil)
 	else:
 	    trn_only_part_final = trn_only_part
-	num_imgs_to_select = trn_only_part_final*(num_trn_imgs/(1 - trn_only_part_final))
-        trn_only_list = add_only_trn_images(case_dir_names_train_only, num_imgs_to_select, is4temporal)
-
+	num_imgs_to_select = trn_only_part_final*(num_trn_imgs_videos/(1 - trn_only_part_final))
+        trn_only_list_videos = add_images_by_number(case_dir_names_train_only_videos, num_imgs_to_select)  
 	
+    # stills
+    ipdb.set_trace()    
+    trn_dirs_stills = trn_dirs_stills + trn_dirs_videos
+    tst_dirs_stills = tst_dirs_stills + tst_dirs_videos
+    trn_list = get_files_in_dirs(trn_dirs_stills, "_color.png", toDilateVideo, videos_ext, dillStep)
+    trn_list += trn_only_list_stills
+    write_list_to_file(trn_list, path_to_trn_stills)
+    tst_list = get_files_in_dirs(tst_dirs_stills, "_color.png", toDilateVideo, videos_ext, dillStep)
+    write_list_to_file(tst_list, path_to_tst_stills)
 
-    print "number of cases all real {} ".format(len( case_dir_names))
-    print "number of cases train {} ".format(len( trn_dirs))
-    print "number of cases test {} ".format(len( tst_dirs))
+    print "number of cases stills {} ".format(len( case_dir_names_stills) + len( case_dir_names_videos))    
+    print "number of cases stills train {} ".format(len( trn_dirs_stills))
+    print "number of cases stills test {} ".format(len( tst_dirs_stills))
+    print "number of cases stills train only {} ".format(len( case_dir_names_train_only_stills))
+    print "number of images trn stills {} ".format(len( trn_list))
+    print "number of images tst stills {} ".format(len( tst_list))
+    print "number of images trn only stills {} ".format(len( trn_only_list_stills))
 
+    # temporal
+    trn_list = get_files_in_dirs(trn_dirs_videos, "_color.png", False, videos_ext)
+    trn_list += trn_only_list_videos
+    write_list_to_file(trn_list, path_to_trn_videos)
 
-    print "number of cases trn only {} ".format(len(case_dir_names_train_only))
-    print "number of images trn only {} ".format(len( trn_only_list))
+    write_list_to_file(tst_dirs_videos, path_to_tst_videos_dirs)
+    tst_list = get_files_in_dirs(tst_dirs_videos, "_color.png", False, videos_ext)
+    write_list_to_file(tst_list, path_to_tst_videos_files)
+
+    print "number of cases videos {} ".format( len( case_dir_names_videos))    
+    print "number of cases videos train {} ".format(len( trn_dirs_videos))
+    print "number of cases videos test {} ".format(len( tst_dirs_videos))
+    print "number of cases videos train only {} ".format(len( case_dir_names_train_only_videos))
+    print "number of images trn videos {} ".format(len( trn_list))
+    print "number of images tst videos {} ".format(len( tst_list))
+    print "number of images trn only videos {} ".format(len( trn_only_list_videos))
     
-    trn_list = get_files_in_dirs(trn_dirs, "_color.png", toDilateVideo, videos_ext)
-    trn_list += trn_only_list
-    write_list_to_file(trn_list, path_to_trn)
 
-    print "number of images train {} ".format(len( trn_list))
-    
-    if is4temporal:
-        write_list_to_file(tst_dirs, path_to_tst)
-	print "number of cases test {} ".format(len( tst_dirs))
-    else:
-        tst_list = get_files_in_dirs(tst_dirs, "_color.png", toDilateVideo, videos_ext)
-        write_list_to_file(tst_list, path_to_tst)
-        print "number of images test {} ".format(len( tst_list))        
+  
 
     
     
