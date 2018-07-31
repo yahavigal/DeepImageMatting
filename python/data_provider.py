@@ -14,10 +14,6 @@ def worker(data_provider,images,batch,masks):
                 img_r, mask_r = data_provider.get_tuple_data_point(image_path)
             else:
                 img_r, mask_r, trimap_r = data_provider.get_tuple_data_point(image_path)
-            #if img_r is None or mask_r is None:
-                #del list_[self.list_ind]
-                #continue
-
                 img_r = np.concatenate((img_r, trimap_r), axis=0)
             batch.append(img_r)
             masks.append(mask_r)
@@ -62,9 +58,9 @@ class DataProvider(object) :
                  batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1,
                  img_width=128,img_height=128):
 
-        self.gt_ext = "_silhuette"
+        self.gt_ext = "silhouette"
         self.trimap_ext = None
-        self.color_ext = "_color"
+        self.color_ext = "color"
         if trimap_dir is not None:
             if "trimap" in trimap_dir.lower():
                 self.trimap_ext = "_triMap"
@@ -106,21 +102,15 @@ class DataProvider(object) :
         self.images_path_in_batch = []
 
         self.is_test_phaze = False
-        self.key_still = 'images'
-        self.key_video = 'videos'
 
     def get_tuple_data_point(self, image_path, isToAddToPathList = True):
 
         if not os.path.exists(image_path):
+            print image_path
             if self.trimap_dir == None:
                 return [None, None]
             else:
                 return [None, None, None]
-
-        if image_path.find(self.key_still) == -1:
-	    self.is_still = False
-        else:
-	    self.is_still = True
 
         img = cv2.imread(image_path)
         if self.is_test_phaze == True:
@@ -143,11 +133,10 @@ class DataProvider(object) :
         # subtract mean
         img_r -= np.array([104, 117, 123], dtype=np.float32)
 
-        #self.img_resized.append(img_r)
-        path = os.path.splitext(image_path)
-        gt_path = path[0] + self.gt_ext + path[1]
+        gt_path = image_path.replace(self.color_ext, self.gt_ext)
         self.gt_path = gt_path
         if not os.path.isfile(gt_path):
+            print 'gt not found {}'.format(gt_path)
             del self.img_resized[-1]
             del self.img_orig[-1]
             if self.trimap_dir == None:
@@ -155,22 +144,16 @@ class DataProvider(object) :
             else:
                 return [None, None, None]
         mask = cv2.imread(gt_path, 0)
+        mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         if self.threshold_param != -1:
-            mask[mask < 256*self.threshold_param] = 0
-            mask[mask >= 256*self.threshold_param] = 1
+            mask[mask_r < 256*self.threshold_param] = 0
+            mask[mask_r >= 256*self.threshold_param] = 1
         else:
-            mask = np.divide(mask,255.0)
+            mask_r = np.divide(mask_r,255.0)
         if self.is_test_phaze == True:
             self.mask_orig.append(mask.copy().astype('float32'))
-        mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         if self.trimap_dir is not None:
-            self.root_data_ind = self.find_data_root_ind(image_path, self.trimap_dir)
-            split = image_path.split(os.sep)[self.root_data_ind:]
-            split = os.sep.join(split)
-            root_dir = image_path.split(os.sep)[0:self.root_data_ind]
-            root_dir = os.sep.join(root_dir)
-            frame_num = re.findall(r'\d+', split)[-1]
-            split = os.path.split(split)
+            frame_num = re.findall(r'\d+', image_path)[-2]
 
             self.frame_num = frame_num
 
@@ -178,18 +161,7 @@ class DataProvider(object) :
             self.images_path_in_batch.append(image_path)
 
         if self.trimap_dir != None:
-            if self.trimap_is_dir:
-                trimap_path = os.path.join(self.trimap_dir,
-                                       split[0], frame_num + self.trimap_ext + ".png")
-	    else:
-		if self.is_still:
-		    curr_key = self.key_still
-		else:
-		    curr_key = self.key_video
-	       	root_depth = os.path.join(root_dir , curr_key + self.trimap_dir)
-                case_path = split[0].replace(curr_key + '/', '')
-                trimap_path = os.path.join(root_depth, case_path, frame_num + self.trimap_ext + ".png")
-
+            trimap_path = image_path.replace(self.color_ext,self.trimap_dir).replace('640x480','160x120')
             if not os.path.isfile(trimap_path):
                 print "depth file not found {} ".format(trimap_path)
                 del self.img_orig[-1]
@@ -209,7 +181,7 @@ class DataProvider(object) :
             if self.use_data_aug == True:
                 # rotation / filipping data augmentation
                 coin = np.random.uniform(0, 1, 1)
-                if '80cm' in image_path and coin <= 0.7:
+                if image_path and coin <= 0.7:
                     img_r, mask_r, trimap_r = data_augmentation.translate(img_r, mask_r, trimap_r)
                 else:
                     if coin <= 0.33:
@@ -226,6 +198,7 @@ class DataProvider(object) :
             mask_r = mask_r.reshape([1, self.img_height, self.img_width])
             img_r = img_r.transpose([2, 0, 1])
             return img_r, mask_r
+
     def switch_to_test(self):
         self.list_ind = 0
         self.is_test_phaze = True

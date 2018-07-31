@@ -72,18 +72,18 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
             plt.axis('off')
             plt.title("trimap input")
             trimap = data_provider.trimap_orig[ind_in_batch]
-            trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
-            trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
-            image_trimap = Image.fromarray(trimap)
-            image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
+            #trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
+            #trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
+            #image_trimap = Image.fromarray(trimap)
+            #image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
 
-            trimap_blend = Image.blend(image_trimap,image_Image,0.8)
-            plt.imshow(trimap_blend)
+            #trimap_blend = Image.blend(image_trimap,image_Image,0.8)
+            plt.imshow(trimap)
 
         plt.subplot(2,2,2)
         plt.axis('off')
         plt.title("GT input")
-        gt_mask = np.repeat(np.expand_dims((gt_mask*255).astype(np.uint8),axis=2),3,axis=2)
+        gt_mask = np.repeat(np.expand_dims((gt_mask).astype(np.uint8),axis=2),3,axis=2)
         gt_mask[:,:,1:] = 0
         gt_input = Image.fromarray(gt_mask)
         gt_blend = Image.blend(gt_input,image_Image,0.8)

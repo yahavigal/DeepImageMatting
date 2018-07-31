@@ -14,7 +14,7 @@ import ipdb
 import matplotlib.pyplot as plt
 import bgs_train_test
 
-gt_ext = "_silhuette"
+gt_ext = "silhouette"
 trimap_ext = "triMap_"
 adverserial_ext = "_adv"
 results_gt_prefix = "Annotation-gt"
@@ -41,8 +41,7 @@ def show_gt_image_overlay(images_dir,trimap_dir = None):
         os.mkdir(results_trimap_prefix)
     for image_path in images_list:
 
-        path = os.path.splitext(image_path)
-        gt_path = path[0] + gt_ext + path[1]
+        gt_path = image_path.replace('color',gt_ext)
 
         if os.path.exists(image_path) ==False or os.path.exists(gt_path) ==False:
             print "NOT_EXIST", image_path, " ", gt_path
