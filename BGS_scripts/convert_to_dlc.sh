@@ -1,10 +1,10 @@
 
 #1. copy NPE from shared location TBD
 #wget or cp or scp to home dir ???????
-NPE_ZIP=/home/or/share/snpe-1.8.0.zip
+NPE_ZIP=/home/or/share/snpe-1.15.0.zip
 
 #2. unzip NPE
-NPE_NAME=`basename /home/or/share/snpe-1.8.0.zip .zip`
+NPE_NAME=`basename /home/or/share/snpe-1.15.0.zip .zip`
 #remove old SNPE
 rm -r ~/$NPE_NAME
 unzip $NPE_ZIP -d ~/ 
