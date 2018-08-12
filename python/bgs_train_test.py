@@ -493,22 +493,6 @@ def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epo
     trainer.data_provider.switch_to_test()
     trainer.test()
     trainer.plot_statistics()
-    if real is not None:
-        trainer.data_provider.images_list_test = trainer.data_provider.create_list_from_file(real[0])
-        trainer.data_provider.trimap_dir = real[1]
-        trainer.data_provider.switch_to_test()
-        trainer.results_path = os.path.join(trainer.results_path,"real_data")
-        os.mkdir(trainer.results_path)
-        trainer.test()
-        trainer.plot_statistics()
-    if publish is not None:
-        trainer.results_path = trainer.results_path.replace("real_data","")
-        if benchmark == True:
-            trainer.solver.net.save(os.path.join(trainer.results_path,"final.caffemodel"), False)
-            deploy_net = [os.path.join(trainer.results_path,x) for x in os.listdir(trainer.results_path) if 'deploy' in x and x.endswith('.prototxt')][0]
-            trigger_benchmark(os.path.join(trainer.results_path,'final.caffemodel'),deploy_net)
-        publish_utils.publish_results(publish,trainer)
-
 
 if __name__ == "__main__":
 
@@ -522,7 +506,6 @@ if __name__ == "__main__":
                                     )
     parser.add_argument('--train_dir', type=str, required=True, help="train directory path or list")
     parser.add_argument('--test_dir', type=str, required=True, help="test directory path or list")
-    parser.add_argument('--trimap_dir', type=str, required=False, default = None,help="trimap or any addtional output, trimap_dir can be or directory path ( standard till 15 May 2018) or subdirectory name extension that have to be changed in the image name in order to get path name")
     parser.add_argument('--solver', type=str, required=True,help="path to solver")
     parser.add_argument('--model', type=str, required=False, default = None, help="pre-trained weights path")
     parser.add_argument('--epochs', type=int, required=False, default = 60, help="number or epochs each epoch is equivalent to ")
@@ -530,13 +513,6 @@ if __name__ == "__main__":
     parser.add_argument('--no_shuffle', action='store_false', help="training with no shuffle, shuufle the data by default")
     parser.add_argument('--gpu', type=int,required=False, default = 0, help= "GPU ID for multiple GPU machine")
     parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
-    parser.add_argument('--publish', type=str,required=False, default = None, help= "copy results folder into a share drive")
-    parser.add_argument('--real', type=str,required=False, default = None,nargs='+',
-                        help= "additional test on other (real) data in case of use trimap or depth you should also add it")
-    parser.add_argument('--temporal', choices = ['temporal', 'time_smooth'], required = False, default = None,
-                        help="train with temporal smoothness consistency: possible values are: temporal - Omer, time_smooth - Alexandra")
-    parser.add_argument('--comment', type=str, required='--publish' in sys.argv ,default='', help="comment to explain your extra details of experiment mandatory for publish")
-    parser.add_argument('--benchmark', action='store_true', help="trigger windows (and android) benchmark valid only in publish")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
     train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
