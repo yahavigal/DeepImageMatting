@@ -9,12 +9,19 @@ import ipdb
 
 def worker(data_provider,images,batch,masks):
     try:
-        for image_path in images:
+        for i,image_path in enumerate(images):
             if data_provider.trimap_dir == None:
                 img_r, mask_r = data_provider.get_tuple_data_point(image_path)
             else:
                 img_r, mask_r, trimap_r = data_provider.get_tuple_data_point(image_path)
                 img_r = np.concatenate((img_r, trimap_r), axis=0)
+                coin = np.random.uniform(0, 1, 1)
+                if coin <= 0.7 and (i < len(images)-1):
+                    data_provider.use_data_aug = False
+                    img_2,gt_2,trimap_2 =data_provider.get_tuple_data_point(images[i + 1], False)
+                    img_r, mask_r, trimap_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2, trimap_r, trimap_2)
+                    data_provider.use_data_aug = True
+
             batch.append(img_r)
             masks.append(mask_r)
     except:

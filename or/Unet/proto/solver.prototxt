@@ -1,8 +1,8 @@
-net: "/home/or/caffe-win/or/Unet/proto/train_v2.prototxt"
-base_lr: 5e-7
+net: "/home/or/caffe-BGS-win/or/Unet/proto/train_prelu_v2.prototxt"
+base_lr: 1e-3
 type: "Adam"
-lr_policy: "fixed"
+lr_policy: "step"
 stepsize: 3000
-gamma: 0.1
+gamma: 0.75
 momentum: 0.9
 weight_decay: 0.00005
