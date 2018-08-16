@@ -10,72 +10,35 @@ import ipdb
 def worker(data_provider,images,batch,masks):
     try:
         for i,image_path in enumerate(images):
-            if data_provider.trimap_dir == None:
-                img_r, mask_r = data_provider.get_tuple_data_point(image_path)
-            else:
-                img_r, mask_r, trimap_r = data_provider.get_tuple_data_point(image_path)
-                img_r = np.concatenate((img_r, trimap_r), axis=0)
-                coin = np.random.uniform(0, 1, 1)
-                if coin <= 0.7 and (i < len(images)-1):
-                    data_provider.use_data_aug = False
-                    img_2,gt_2,trimap_2 =data_provider.get_tuple_data_point(images[i + 1], False)
-                    img_r, mask_r, trimap_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2, trimap_r, trimap_2)
-                    data_provider.use_data_aug = True
+           img_r, mask_r = data_provider.get_tuple_data_point(image_path)
+           coin = np.random.uniform(0, 1, 1)
+           if coin <= 0.7 and (i < len(images)-1):
+              # data_provider.use_data_aug = False
+               img_2,gt_2 = data_provider.get_tuple_data_point(images[i + 1], False)
+               img_r, mask_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2)
+               #data_provider.use_data_aug = True
 
-            batch.append(img_r)
-            masks.append(mask_r)
+           batch.append(img_r)
+           masks.append(mask_r)
     except:
         pass
 
 manager = multiprocessing.Manager()
 class DataProvider(object) :
 
-    def find_data_root_ind(self, image,trimap_root):
-        ind = 0
-        image_split = image.split(os.sep)
-        if self.trimap_is_dir:
-    	    trimap_split = trimap_root.split(os.sep)
-    	    while image_split[ind] == trimap_split[ind]:
-               ind +=1
-            ind += 1
-        else:
-            if self.is_still:
-                ind = image_split.index(self.key_still)
-            else:
-		ind = image_split.index(self.key_video)
-        return ind
-
     def create_list_from_file(self,input_file):
-        if os.path.isdir(input_file):
-            list_images = [os.path.join(input_file, x)
-                                      for x in os.listdir(input_file)
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1]
-        elif os.path.isfile(input_file):
-            images = open(input_file).readlines()
-            images = [x[0:-1] for x in images if x.endswith('\n')]
-            list_images = [x for x in images
-                                      if x.endswith(".png") and x.find(self.gt_ext) == -1
-                                      and (self.use_adv_data_train == False or x.find(self.adverserial_ext) != -1)
-                                      or os.path.isdir(x)]
-        else:
-            list_images = None
+        list_images = None
+        images = open(input_file).readlines()
+        images = [x[0:-1] for x in images if x.endswith('\n')]
+        list_images = [x for x in images if x.endswith(".png")]
         return list_images
 
-    def __init__(self, images_dir_test, images_dir_train,trimap_dir=None, shuffle_data=True,
-                 batch_size = 32, use_data_aug = True, use_adv_data_train = False,threshold_param = -1,
+    def __init__(self, images_dir_test, images_dir_train, shuffle_data=True,
+                 batch_size = 32, use_data_aug = True,threshold_param = -1,
                  img_width=128,img_height=128):
 
         self.gt_ext = "silhouette"
-        self.trimap_ext = None
         self.color_ext = "color"
-        if trimap_dir is not None:
-            if "trimap" in trimap_dir.lower():
-                self.trimap_ext = "_triMap"
-            else:
-                self.trimap_ext = "_depth"
-        self.adverserial_ext = "_adv"
-        self.use_adv_data_train = use_adv_data_train
-        self.trimap_dir = trimap_dir
         self.batch_size = batch_size
         self.shuffle = shuffle_data
         self.use_data_aug = use_data_aug
@@ -84,16 +47,9 @@ class DataProvider(object) :
         self.images_list_train = self.create_list_from_file(images_dir_train)
         self.images_list_test = self.create_list_from_file(images_dir_test)
 
-        self.trimap_dir = trimap_dir
-        if trimap_dir is not None:
-            if os.path.isdir(self.trimap_dir):
-                self.trimap_is_dir = True
-            else:
-                self.trimap_is_dir = False
 
         if self.images_list_train is not None and shuffle_data == True:
             random.shuffle(self.images_list_train)
-
 
         self.img_width = img_width
         self.img_height = img_height
@@ -104,7 +60,6 @@ class DataProvider(object) :
         self.iter_ind = 0
 
         self.img_orig = []
-        self.trimap_orig = []
         self.mask_orig = []
         self.images_path_in_batch = []
 
@@ -114,10 +69,7 @@ class DataProvider(object) :
 
         if not os.path.exists(image_path):
             print image_path
-            if self.trimap_dir == None:
-                return [None, None]
-            else:
-                return [None, None, None]
+            return [None, None]
 
         img = cv2.imread(image_path)
         if self.is_test_phaze == True:
@@ -146,10 +98,8 @@ class DataProvider(object) :
             print 'gt not found {}'.format(gt_path)
             del self.img_resized[-1]
             del self.img_orig[-1]
-            if self.trimap_dir == None:
-                return [None, None]
-            else:
-                return [None, None, None]
+            return [None, None]
+
         mask = cv2.imread(gt_path, 0)
         mask_r = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         if self.threshold_param != -1:
@@ -159,52 +109,27 @@ class DataProvider(object) :
             mask_r = np.divide(mask_r,255.0)
         if self.is_test_phaze == True:
             self.mask_orig.append(mask.copy().astype('float32'))
-        if self.trimap_dir is not None:
-            frame_num = re.findall(r'\d+', image_path)[-2]
 
-            self.frame_num = frame_num
 
         if isToAddToPathList and self.is_test_phaze == True:
             self.images_path_in_batch.append(image_path)
 
-        if self.trimap_dir != None:
-            trimap_path = image_path.replace(self.color_ext,self.trimap_dir).replace('640x480','160x120')
-            if not os.path.isfile(trimap_path):
-                print "depth file not found {} ".format(trimap_path)
-                del self.img_orig[-1]
-                del self.mask_orig[-1]
-                return [None, None, None]
 
-            trimap = cv2.imread(trimap_path, 0)
-            if trimap is None:
-                del self.img_orig[-1]
-                del self.mask_orig[-1]
-                return [None, None, None]
+        if self.use_data_aug == True:
+            # rotation / filipping data augmentation
+            coin = np.random.uniform(0, 1, 1)
+            if image_path and coin <= 0.7:
+                img_r, mask_r = data_augmentation.translate(img_r, mask_r)
+            else:
+                if coin <= 0.33:
+                    img_r, mask_r = data_augmentation.horizontal_flipping(img_r, mask_r)
+                elif coin <= 0.66:
+                    img_r, mask_r = data_augmentation.rotate(img_r,mask_r)
 
-            if self.is_test_phaze == True:
-                self.trimap_orig.append(trimap.copy())
-            trimap_r = cv2.resize(trimap, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
+        mask_r = mask_r.reshape([1, self.img_height, self.img_width])
+        img_r = img_r.transpose([2, 0, 1])
 
-            if self.use_data_aug == True:
-                # rotation / filipping data augmentation
-                coin = np.random.uniform(0, 1, 1)
-                if image_path and coin <= 0.7:
-                    img_r, mask_r, trimap_r = data_augmentation.translate(img_r, mask_r, trimap_r)
-                else:
-                    if coin <= 0.33:
-                        img_r, mask_r, trimap_r = data_augmentation.horizontal_flipping(img_r, mask_r, trimap_r)
-                    elif coin <= 0.66:
-                        img_r, mask_r, trimap_r = data_augmentation.rotate(img_r, mask_r, trimap_r)
-
-            trimap_r = trimap_r.reshape([1, self.img_height, self.img_width])
-            mask_r = mask_r.reshape([1, self.img_height, self.img_width])
-            img_r = img_r.transpose([2, 0, 1])
-
-            return img_r, mask_r, trimap_r
-        else:
-            mask_r = mask_r.reshape([1, self.img_height, self.img_width])
-            img_r = img_r.transpose([2, 0, 1])
-            return img_r, mask_r
+        return img_r, mask_r
 
     def switch_to_test(self):
         self.list_ind = 0
@@ -220,7 +145,6 @@ class DataProvider(object) :
         masks = manager.list()
         self.img_orig =[]
         self.mask_orig =[]
-        self.trimap_orig =[]
         self.images_path_in_batch = []
         num_of_jobs = 8
         if self.is_test_phaze == True:

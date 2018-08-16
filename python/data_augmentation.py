@@ -20,29 +20,10 @@ def color_jitter(image):
     return np.dot(image,noise)
 
 #add random crops centerd at unknown regions (in case of trimap != None)
-def random_cropping(image, crop_size, gt, target_size, ncrops = 1,  trimap = None):
-    pass
 
 #as proposed in Deep Image Matting
-def horizontal_flipping(image, gt, trimap = None):
-    if trimap is None:
-        return [cv2.flip(image,flipCode = 1),cv2.flip(gt,flipCode = 1)]
-    else:
-        return [cv2.flip(image, flipCode = 1),
-                cv2.flip(gt, flipCode = 1),
-                cv2.flip(trimap,flipCode = 1)]
-
-#as proposed in deep image matting
-def random_dilate_tri_map(trimap):
-    rows,cols = trimap.shape[0:2]
-    morph_rate =  randint(int(0.05*cols),int(0.1*cols))
-    kernel = np.ones((morph_rate,morph_rate),np.uint8)
-    coin = randint(0,1)
-    if coin == 0:
-        morphed_trimap = cv2.erode(trimap,kernel,iterations = 1)
-    else:
-        morphed_trimap = cv2.dilate(trimap,kernel,iterations = 1)
-    return morphed_trimap
+def horizontal_flipping(image, gt):
+    return [cv2.flip(image,flipCode = 1),cv2.flip(gt,flipCode = 1)]
 
 
 #as propose in alex net paper
@@ -57,20 +38,16 @@ def PCA_noise(image):
     return np.add(image.astype('float32'),value_to_add.T)
 
 #as proposed in Deep Automatic Protrait Matting
-def rotate(image, gt, trimap = None):
+def rotate(image, gt):
     angel = rotaion_angels[randint(0,len(rotaion_angels)-1)]
     rows,cols = image.shape[0:2]
 
     M = cv2.getRotationMatrix2D((cols/2, rows/2), angel, 1)
     rotated_image = cv2.warpAffine(image,M,(cols,rows))
     rotated_gt = cv2.warpAffine(gt, M, (cols,rows))
-    if trimap is not None:
-        rotated_trimap = cv2.warpAffine(trimap, M, (cols,rows))
-        return [rotated_image,rotated_gt,rotated_trimap]
-    else:
-        return [rotated_image,rotated_gt]
+    return [rotated_image,rotated_gt]
 
-def translate(image, gt,trimap = None):
+def translate(image, gt):
     rows,cols = image.shape[0:2]
     translation_x =  randint(int(0.1*cols),int(0.2*cols))
     coin = randint(0,1)
@@ -83,22 +60,7 @@ def translate(image, gt,trimap = None):
     else:
         translated_image[:,0:translation_x] = image[:,0:translation_x]
     translated_gt = cv2.warpAffine(gt,M,(cols,rows))
-    if trimap is not None:
-        translated_trimap = cv2.warpAffine(trimap, M, (cols,rows))
-        if len(np.unique(trimap)) == 3:
-            if coin == 0:
-                translated_trimap[:,translation_x:cols-1] = 128
-            else:
-                translated_trimap[:,0:translation_x] = 128
-        else:
-            if coin == 0:
-                translated_trimap[:,translation_x:cols-1] = trimap[:,translation_x:cols-1]
-            else:
-                translated_trimap[:,0:translation_x] = trimap[:,0:translation_x]
-
-        return [translated_image,translated_gt,translated_trimap]
-    else:
-        return [translated_image,translated_gt]
+    return [translated_image,translated_gt]
 
 #as proposed in Deep Automatic Protrait Matting
 def gamma_correction(image):

@@ -27,9 +27,7 @@ from google.protobuf import text_format
 from caffe.proto import caffe_pb2
 import publish_utils
 import shutil
-import TF_utils
 from convert_train_to_deploy import *
-from benchmark_utils import *
 import types
 import fs_metrics
 
@@ -51,12 +49,6 @@ def check_threshold_param(net_file,threshold):
             if threshold != layer.threshold_param.threshold:
                 raise Exception("IOU threshold not consistent with the threshold supplied")
 
-def copy_last_masks(net,data_provider):
-    if 'alpha_pred_s' in net.blobs.keys():
-        data_provider.last_masks = net.blobs['alpha_pred_s'].data.copy()*255
-    else:
-        data_provider.last_masks = net.blobs['alpha_pred'].data.copy()*255
-
 #python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/train_list.txt --test_dir ../or/deepImageMatting/scripts/test_list.txt --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_1792_MaxAccuracy9691.caffemodel
 
 #or@ortrainubuntu5:~/caffe-BGS-win/python$ python bgs_train_test.py --train_dir ../or/deepImageMatting/scripts/composed/train_list.txt --test_dir ../or/deepImageMatting/scripts/composed/test_list.txt --trimap_dir /media/or/Data/composed/DataSet_2_composed_depth_norm/ --solver ../or/fastPortraitMatting/proto/solver.prototxt --model  ../or/fastPortraitMatting/snapshots/_iter_9180_MaxAccuracy8968.caffemodel
@@ -65,20 +57,12 @@ def copy_last_masks(net,data_provider):
 class bgs_test_train (object):
     def __init__(self, images_dir_test, images_dir_train, solver_path,weights_path,
                  snapshot_path, batch_size=32, snapshot = 100, snapshot_diff = False,
-                 trimap_dir = None, DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
-                 threshold = -1, temporal = None, results_path=None,comment=''):
+                 DSD_flag = False, save_loss_per_image = False, shuffle_data = True,
+                 threshold = -1, results_path=None):
 
         self.threhold_param = threshold
-        self.comment = comment
         # trimap_dir can be or directory path ( standard till 15 May 2018) or subdirectory name that have to be changed in the image name in order to get path name
-        if trimap_dir is not None:
-            if "trimap" in trimap_dir.lower():
-                self.trimap_ext = "_triMap"
-            else:
-                self.trimap_ext = "_depth"
         self.exp_name = platform.node() + " " + solver_path.split(os.sep)[-3]
-        if trimap_dir is not None:
-            self.exp_name += self.trimap_ext
 
         if solver_path.find('solver') != -1:
             self.solver = caffe.get_solver(solver_path)
@@ -95,28 +79,13 @@ class bgs_test_train (object):
             img_width = self.net.blobs[self.net.inputs[0]].shape[3]
             img_height = self.net.blobs[self.net.inputs[0]].shape[2]
 
-        if temporal == None:
-                self.data_provider = DataProvider(images_dir_test,images_dir_train,trimap_dir,shuffle_data,
-                                                  batch_size=batch_size,use_data_aug=True,use_adv_data_train=False,
-                                                  threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
-        elif temporal == 'temporal':
-            self.data_provider = TemporalDataProvider(images_dir_test,images_dir_train,trimap_dir,
-                                              batch_size=batch_size,use_data_aug=False,use_adv_data_train=False,
-                                              threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
-        elif temporal == 'time_smooth':
-            self.data_provider = TimeSmoothDataProvider(images_dir_test,images_dir_train,trimap_dir, shuffle_data,
-                                              batch_size=batch_size,use_data_aug=False,use_adv_data_train=False,
-                                              threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
+        self.data_provider = DataProvider(images_dir_test,images_dir_train,shuffle_data, batch_size=batch_size, use_data_aug=True,
+                                          threshold_param= self.threhold_param,img_width= img_width,img_height=img_height)
 
         self.data_provider.solver = self.solver
-        # current standard, change if standards changes
-        self.data_provider.key_still = 'images'
-        self.data_provider.key_video = 'videos'
 
         self.exp_name += "_{}X{}".format(self.data_provider.img_width,self.data_provider.img_height)
         self.exp_name += "_threshold_{}".format(self.threhold_param)
-        if temporal == 'temporal' and self.data_provider.insert_prev_data == True:
-            self.exp_name+='_temporal'
 
         if weights_path != None and weights_path != "" and os.path.isfile(weights_path):
             if self.solver is not None:
@@ -141,38 +110,23 @@ class bgs_test_train (object):
 
         self.snapshot = snapshot
         self.snapshot_diff = snapshot_diff
-        self.infer_only_trimap = False
         self.dump_bin = False
         self.view_all = True
         self.save_test_by_loss = save_loss_per_image
-        self.use_tf_inference = False
         self.snapshot_path = snapshot_path
-        self.temporal = temporal
         self.train_measures = defaultdict(list)
         self.test_measures = defaultdict(list)
-        self.maxAccuracy = 0.0;
-        self.saveByMaxAccuracy = False
 
         if not os.path.exists(self.snapshot_path) and self.data_provider.images_list_train is not None:
             os.makedirs(self.snapshot_path)
         if not os.path.exists(self.results_path):
             os.makedirs(self.results_path)
 
-        if self.use_tf_inference == True:
-            sys.path.append(os.path.join(os.getcwd(),"..","or",solver_path.split(os.sep)[-3],"scripts"))
-            import convert_to_tf
-            convert_to_tf.load_caffe_weights(solver_path,weights_path)
-            self.tf_trainer =  TF_utils.TF_trainer(solver_path.split(os.sep)[-3],self.data_provider.img_width,self.data_provider.img_height,
-                                          batch_size =self.data_provider.batch_size)
-        #if self.use_fs_metric == True:
         self.fs_metrics = [(x,getattr(fs_metrics,x))  for x in dir(fs_metrics) if isinstance(fs_metrics.__dict__.get(x), types.FunctionType)]
 
 
     def train(self):
-        if self.temporal == 'time_smooth':
-            images, masks, masks_prev, preds_prev = self.data_provider.get_batch_data()
-        else:
-            images, masks = self.data_provider.get_batch_data()
+        images, masks = self.data_provider.get_batch_data()
 
         net = self.solver.net
         net.blobs[net.inputs[0]].reshape(*images.shape)
@@ -180,20 +134,7 @@ class bgs_test_train (object):
         net.blobs[net.inputs[0]].data[...]= images
         net.blobs[net.inputs[1]].data[...]= masks
 
-        if self.temporal == 'time_smooth':
-            net.blobs[net.inputs[2]].reshape(*masks_prev.shape)
-            net.blobs[net.inputs[3]].reshape(*preds_prev.shape)
-            net.blobs[net.inputs[2]].data[...]= masks_prev
-            net.blobs[net.inputs[3]].data[...]= preds_prev
-
-        #part of ofir's method in comment for now
-        #if self.temporal == 'temporal' and np.any(images[:,-1,:]) == False:
-        #    self.solver.net.forward()
-        #else:
-        #    self.solver.step(1)
-
         self.solver.step(1)
-	#ipdb.set_trace() # to see data in net including gradiets and data
 
         # dense sparse dense (DSD)
         if self.DSD_flag == True and self.DSD_masks is not None:
@@ -209,102 +150,13 @@ class bgs_test_train (object):
             self.train_measures[output].append(net.blobs[output].data.flatten()[0])
             print self.data_provider.iter_ind , " {}:  {} ".format(output,net.blobs[output].data)
 
-        if self.saveByMaxAccuracy == True:
-            if 'mask_accuracy' in self.train_measures.keys():
-                isTosaveMaxAccuracyModel = False
-                if self.maxAccuracy < self.train_measures['mask_accuracy'][-1] :
-                    self.maxAccuracy = self.train_measures['mask_accuracy'][-1]
-                    isTosaveMaxAccuracyModel = True
-
-                if isTosaveMaxAccuracyModel == True:
-                    isTosaveMaxAccuracyModel = False
-                    print "snapshot iter {}".format(self.data_provider.iter_ind)
-                    snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+"_MaxAccuracy" + str(int(10000*net.blobs['mask_accuracy'].data.flatten()[0]))+".caffemodel")
-                    self.solver.net.save(snapshot_file, self.snapshot_diff)
-
-
         if self.data_provider.iter_ind % self.snapshot == 0:
             print "snapshot iter {}".format(self.data_provider.iter_ind)
             snapshot_file = os.path.join(self.snapshot_path,"_iter_"+str(self.data_provider.iter_ind)+".caffemodel")
             self.solver.net.save(snapshot_file, self.snapshot_diff)
 
-        if self.temporal == 'temporal':
-            copy_last_masks(net,self.data_provider)
 
         return net.blobs['loss'].data
-
-    def test_aux_ts(self, net, times, test_log_file, is_save_fig):
-         for self.data_provider.list_ind in xrange(0, len(self.data_provider.images_list_test) ):
-            self.data_provider.get_current_clip_list( self.data_provider.images_list_test, self.data_provider.list_ind)
-            pred_prev_r = None
-            mask_prev_r = None
-            for self.data_provider.current_clip_ind in xrange(0, len(self.data_provider.current_clip_list)):
-                print self.data_provider.current_clip_ind
-                image_path = self.data_provider.current_clip_list[self.data_provider.current_clip_ind];
-
-                img_r, mask_r = self.data_provider.get_test_data( 1, image_path, pred_prev_r, mask_prev_r)
-                if img_r is None or mask_r is None or len(img_r) ==0 or len(mask_r) == 0:
-                    continue
-
-                if pred_prev_r is None:
-	            pred_prev_r = np.zeros_like(mask_r)
-
-	        if mask_prev_r is None:
-	            mask_prev_r = np.zeros_like(mask_r)
-
-                if img_r.ndim < 4:
-		    img_r = np.expand_dims(img_r, axis = 0)
-                if mask_r.ndim < 4:
-                    mask_r = np.expand_dims(mask_r, axis = 0)
-                if mask_prev_r.ndim < 4:
-                    mask_prev_r = np.expand_dims( mask_prev_r, axis = 0)
-                if pred_prev_r.ndim < 4:
-                    pred_prev_r = np.expand_dims(pred_prev_r, axis = 0)
-
-
-                net.blobs[net.inputs[0]].reshape(*img_r.shape)
-                net.blobs[net.inputs[1]].reshape(*mask_r.shape)
-                net.blobs[net.inputs[0]].data[...]= img_r
-                net.blobs[net.inputs[1]].data[...]= mask_r
-                net.blobs[net.inputs[2]].reshape(*mask_prev_r.shape)
-                net.blobs[net.inputs[2]].data[...]= mask_prev_r
-                net.blobs[net.inputs[3]].reshape(*pred_prev_r.shape)
-                net.blobs[net.inputs[3]].data[...]= pred_prev_r
-
-                input_bin = img_r.flatten().tolist()
-
-                start = current_milli_time()
-                net.forward()
-                times.append(current_milli_time() - start)
-
-                mask_prev_r = mask_r.copy()
-                if 'alpha_pred_s' in net.blobs.keys():
-            	    pred_prev_r = net.blobs['alpha_pred_s'].data[0].copy()
-        	else:
-            	    pred_prev_r = net.blobs['alpha_pred'].data[0].copy()
-
-                single_image = img_r
-                single_mask = mask_r
-                image = self.data_provider.current_clip_list[self.data_provider.current_clip_ind]
-
-                test_log_file.write(image)
-                for output in net.outputs:
-                    if output == 'alpha_pred' or output == 'alpha_pred_s':
-                        continue
-                    self.test_measures[output].append(net.blobs[output].data.flatten()[0])
-                    test_log_file.write(" {}".format(self.test_measures[output][-1]))
-                test_log_file.write('\n')
-
-                iou = int(100*self.test_measures['mask_accuracy'][-1])
-
-                if self.save_test_by_loss == True:
-                    loss_per_image[self.test_measures['loss'][-1]] = image
-
-                if is_save_fig == True:
-                    plot_test_images(self.data_provider,net,0,self.dump_bin,
-                                     self.view_all,self.infer_only_trimap, self.results_path, iou, input_bin)
-
-
 
     def test_aux_std(self, net, times, test_log_file, is_save_fig):
 	while self.data_provider.epoch_ind == 0:
@@ -325,9 +177,6 @@ class bgs_test_train (object):
                 single_image = img_r[i]
                 single_mask = mask_r[i]
                 image = self.data_provider.images_path_in_batch[i]
-                if self.use_tf_inference ==True:
-                    tf_res,iou = self.tf_trainer.run_inference(single_image,single_mask)
-                    avg_iou_tf.append(iou)
 
                 test_log_file.write(image)
                 for output in net.outputs:
@@ -355,19 +204,8 @@ class bgs_test_train (object):
 
                 if is_save_fig == True:
                     plot_test_images(self.data_provider,net,i,self.dump_bin,
-                                     self.view_all,self.infer_only_trimap, self.results_path, iou,input_bin)
+                                     self.view_all, self.results_path, iou,input_bin)
 
-                if self.temporal == 'temporal':
-                    copy_last_masks(net,self.data_provider)
-                    self.data_provider.iter_ind += 1
-
-    def remove_nans_from_list(list_in):
-        inds = np.argwhere(np.isnan(self.train_measures['mask_accuracy']))
-        ind_2_rem = np.squeeze(inds)
-        list_out = list_in.copy()
-        del list_out[i]
-
-	return list_out
 
     def test(self, is_save_fig = True):
 
@@ -387,25 +225,10 @@ class bgs_test_train (object):
 
             self.test_measures[output] = []
         test_log_file.write('\n')
-        diff_caffe_tf = []
         times = []
         loss_per_image = {}
-        avg_iou_tf =[]
-        if self.use_tf_inference == True and self.data_provider.images_list_train is not None:
-            for i in xrange(5000):
-                x,y = self.data_provider.get_batch_data(self.data_provider.batch_size)
-                _, loss, _  = self.tf_trainer.step(x,y)
-                print "loss for fine tune is: {} IOU is: {}".format(loss,iou)
-            self.tf_trainer.save()
-            print "data saved"
 
-        #no data augmentation in test
-        trimap_r = None
-
-        if self.temporal == 'time_smooth':
-            self.test_aux_ts(net, times, test_log_file, is_save_fig)
-	else:
-	    self.test_aux_std(net, times, test_log_file, is_save_fig)
+        self.test_aux_std(net, times, test_log_file, is_save_fig)
 
         with open(os.path.join(self.results_path,"summary.txt"),'w') as summary:
             for output in net.outputs:
@@ -429,13 +252,9 @@ class bgs_test_train (object):
                 print str_test
                 summary.write(str_test + '\n')
 
-            print self.comment
-            summary.write(self.comment + '\n')
 
             print "{} average time for inference: {}".format(self.exp_name,np.average(times))
 
-        if self.use_tf_inference ==True:
-            print "average iou on test in TF {}".format(np.average(avg_iou_tf))
 
         test_log_file.close()
         if hasattr(self,'solver_path'):
@@ -476,13 +295,11 @@ class bgs_test_train (object):
         plt.savefig(os.path.join(self.results_path,'stats.fig.jpg'))
         plt.show(block=False)
 
-def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num, trimap_dir,DSD,shuffle,
-                 threshold,publish,real,temporal,comment,benchmark):
+def train_epochs(images_dir_test, images_dir_train, solver_path,weights_path,epochs_num,DSD,shuffle,threshold):
     snapshot_path = solver_path.replace("proto","snapshots",1)
     snapshot_path = os.path.split(snapshot_path)[0]
     trainer = bgs_test_train(images_dir_test, images_dir_train, solver_path,weights_path,snapshot_path,
-                             trimap_dir = trimap_dir,DSD_flag = DSD,shuffle_data=shuffle,threshold=threshold,
-                             temporal=temporal,comment=comment)
+                             DSD_flag = DSD,shuffle_data=shuffle,threshold=threshold)
 
     while trainer.data_provider.epoch_ind < epochs_num:
         trainer.train()
@@ -500,7 +317,6 @@ if __name__ == "__main__":
     epilog= '''Usage:
     python bgs_train_test.py --train_dir ../BGS_scripts/train_list.txt
                               --test_dir ../BGS_scripts/test_list.txt
-                              --trimap_dir /media/or/Data/deepImageMatting/set1_07_2017_depth_norm
                               --solver ../or/fastPortraitMatting/proto/solver.prototxt
                               --model  ../or/fastPortraitMatting/snapshots/_iter_100.caffemodel'''
                                     )
@@ -515,9 +331,7 @@ if __name__ == "__main__":
     parser.add_argument('--threshold', type=float,required=False, default = -1, help= "threshold for mask if -1 no thresholding applied")
     args = parser.parse_args()
     caffe.set_device(args.gpu)
-    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,args.trimap_dir,DSD=args.DSD,
-                 shuffle=args.no_shuffle,threshold=args.threshold,publish = args.publish,real =args.real, temporal=args.temporal,
-                 comment = args.comment, benchmark=args.benchmark)
+    train_epochs(args.test_dir,args.train_dir,args.solver,args.model,args.epochs,DSD=args.DSD,shuffle=args.no_shuffle,threshold=args.threshold)
     raw_input()
 
 

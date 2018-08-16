@@ -1,0 +1,13 @@
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average loss on test: 18339.6269531 variance 1065241792.0
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average loss on train: 22822.2988281 variance 2265544704.0
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_absdiff on test: 0.0189563613385 variance 0.000120380609587
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_absdiff on train: 0.0147220985964 variance 0.000486142816953
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_accuracy on test: 0.954800069332 variance 0.000319455954013
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_accuracy on train: 0.961617171764 variance 0.00405536126345
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_connect on test: 0.000103766935354 variance 2.7763212529e-06
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_connect on train: 0.000977797200903 variance 6.88387299306e-05
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_gradient on test: 0.0479987636209 variance 0.000563625595532
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average mask_gradient on train: 0.0334820412099 variance 0.000243269023485
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average temporal_accuracy on test: nan variance nan
+ortrainubuntu9 fastPortraitMatting_depth_160X120_threshold_-1 average temporal_accuracy on train: 0.0179901625961 variance 0.000683697580826
+2 data layers trying to mimic guided filter

@@ -1,0 +1,424 @@
+name: "Deep image matting"
+input: "data"
+input_dim: 1
+input_dim: 3
+input_dim: 128
+input_dim: 128
+layer {
+  name: "conv1_1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1_1"
+  convolution_param {
+    num_output: 6
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu1_1"
+  type: "PReLU"
+  bottom: "conv1_1"
+  top: "conv1_1"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv1_2"
+  type: "Convolution"
+  bottom: "conv1_1"
+  top: "conv1_2"
+  convolution_param {
+    num_output: 6
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu1_2"
+  type: "PReLU"
+  bottom: "conv1_2"
+  top: "conv1_2"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "pool1"
+  type: "Pooling"
+  bottom: "conv1_2"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv2_1"
+  type: "Convolution"
+  bottom: "pool1"
+  top: "conv2_1"
+  convolution_param {
+    num_output: 12
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu2_1"
+  type: "PReLU"
+  bottom: "conv2_1"
+  top: "conv2_1"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv2_2"
+  type: "Convolution"
+  bottom: "conv2_1"
+  top: "conv2_2"
+  convolution_param {
+    num_output: 12
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu2_2"
+  type: "PReLU"
+  bottom: "conv2_2"
+  top: "conv2_2"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "pool2"
+  type: "Pooling"
+  bottom: "conv2_2"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv3_1"
+  type: "Convolution"
+  bottom: "pool2"
+  top: "conv3_1"
+  convolution_param {
+    num_output: 24
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu3_1"
+  type: "PReLU"
+  bottom: "conv3_1"
+  top: "conv3_1"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv3_2"
+  type: "Convolution"
+  bottom: "conv3_1"
+  top: "conv3_2"
+  convolution_param {
+    num_output: 24
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu3_2"
+  type: "PReLU"
+  bottom: "conv3_2"
+  top: "conv3_2"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv3_3"
+  type: "Convolution"
+  bottom: "conv3_2"
+  top: "conv3_3"
+  convolution_param {
+    num_output: 24
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu3_3"
+  type: "PReLU"
+  bottom: "conv3_3"
+  top: "conv3_3"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "pool3"
+  type: "Pooling"
+  bottom: "conv3_3"
+  top: "pool3"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv4_1"
+  type: "Convolution"
+  bottom: "pool3"
+  top: "conv4_1"
+  convolution_param {
+    num_output: 48
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu4_1"
+  type: "PReLU"
+  bottom: "conv4_1"
+  top: "conv4_1"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv4_2"
+  type: "Convolution"
+  bottom: "conv4_1"
+  top: "conv4_2"
+  convolution_param {
+    num_output: 48
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu4_2"
+  type: "PReLU"
+  bottom: "conv4_2"
+  top: "conv4_2"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "conv4_3"
+  type: "Convolution"
+  bottom: "conv4_2"
+  top: "conv4_3"
+  convolution_param {
+    num_output: 48
+    pad: 1
+    kernel_size: 3
+  }
+}
+layer {
+  name: "relu4_3"
+  type: "PReLU"
+  bottom: "conv4_3"
+  top: "conv4_3"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "pool4"
+  type: "Pooling"
+  bottom: "conv4_3"
+  top: "pool4"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "deconv_4"
+  type: "Deconvolution"
+  bottom: "pool4"
+  top: "deconv_4"
+  convolution_param {
+    num_output: 24
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+layer {
+  name: "relu5t"
+  type: "PReLU"
+  bottom: "deconv_4"
+  top: "deconv_4"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "concat_3"
+  type: "Concat"
+  bottom: "deconv_4"
+  bottom: "pool3"
+  top: "concat_3"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "deconv_3"
+  type: "Deconvolution"
+  bottom: "concat_3"
+  top: "deconv_3"
+  convolution_param {
+    num_output: 24
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+layer {
+  name: "relu3t"
+  type: "PReLU"
+  bottom: "deconv_3"
+  top: "deconv_3"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "concat_2"
+  type: "Concat"
+  bottom: "deconv_3"
+  bottom: "pool2"
+  top: "concat_2"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "deconv_2"
+  type: "Deconvolution"
+  bottom: "concat_2"
+  top: "deconv_2"
+  convolution_param {
+    num_output: 12
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+layer {
+  name: "relu2t"
+  type: "PReLU"
+  bottom: "deconv_2"
+  top: "deconv_2"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "concat_1"
+  type: "Concat"
+  bottom: "deconv_2"
+  bottom: "pool1"
+  top: "concat_1"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "deconv_1"
+  type: "Deconvolution"
+  bottom: "concat_1"
+  top: "deconv_1"
+  convolution_param {
+    num_output: 6
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+layer {
+  name: "relu1t"
+  type: "PReLU"
+  bottom: "deconv_1"
+  top: "deconv_1"
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0.20000000298
+    }
+  }
+}
+layer {
+  name: "raw_alpha_pred"
+  type: "Convolution"
+  bottom: "deconv_1"
+  top: "alpha_pred"
+  convolution_param {
+    num_output: 1
+    pad: 2
+    kernel_size: 5
+    stride: 1
+  }
+}
+layer {
+  name: "sigmoid_pred"
+  type: "Sigmoid"
+  bottom: "alpha_pred"
+  top: "alpha_pred"
+}

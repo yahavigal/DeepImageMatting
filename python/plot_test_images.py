@@ -11,7 +11,7 @@ def sigmoid(arr):
     return 1.0/(1+np.exp(-arr))
 
 def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
-                     infer_only_trimap, results_path,iou,input_bin):
+                      results_path,iou,input_bin):
 
     image_path = data_provider.images_path_in_batch[ind_in_batch]
     image_orig = data_provider.img_orig[ind_in_batch]
@@ -25,10 +25,6 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
     if (np.min(mask) < 0 or np.max(mask) > 1):
         mask = sigmoid(mask)
 
-    if infer_only_trimap == True:
-        trimap = data_provider.trimap_resized[ind_in_batch]
-        mask[trimap == 255] = 1
-        mask[trimap== 128 ] = 0
 
     mask_r = cv2.resize(mask, (image_orig.shape[1],image_orig.shape[0]))
     bg = cv2.imread('bg.jpg')
@@ -66,21 +62,9 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
     if view_all == True:
 
         image_Image = Image.fromarray(image_orig.astype(np.uint8))
-        if data_provider.trimap_ext  is not None:
-            fig = plt.figure(figsize = (8,8))
-            plt.subplot(2,2,1)
-            plt.axis('off')
-            plt.title("trimap input")
-            trimap = data_provider.trimap_orig[ind_in_batch]
-            #trimap = np.repeat(np.expand_dims(trimap,axis=2),3,axis=2)
-            #trimap[np.any(trimap == [0,0,0],axis = -1)] = (255,0,0)
-            #image_trimap = Image.fromarray(trimap)
-            #image_trimap = image_trimap.resize((image_orig.shape[1],image_orig.shape[0]))
+        fig = plt.figure(figsize = (4,8))
 
-            #trimap_blend = Image.blend(image_trimap,image_Image,0.8)
-            plt.imshow(trimap)
-
-        plt.subplot(2,2,2)
+        plt.subplot(1,2,1)
         plt.axis('off')
         plt.title("GT input")
         gt_mask = np.repeat(np.expand_dims((gt_mask).astype(np.uint8),axis=2),3,axis=2)
@@ -89,7 +73,7 @@ def plot_test_images(data_provider,net, ind_in_batch, dump_bin, view_all,
         gt_blend = Image.blend(gt_input,image_Image,0.8)
         plt.imshow(gt_blend)
 
-        plt.subplot(2,2,3)
+        plt.subplot(1,2,2)
         plt.axis('off')
         plt.title("algo results")
         mask_r = np.repeat(np.expand_dims(mask_r,axis=2),3,axis=2)
