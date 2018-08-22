@@ -1,6 +1,6 @@
 net: "/home/or/caffe-BGS-win/or/deepImageMatting/proto/train_p1.prototxt"
-base_lr: 1e-7
-type: "SGD"
+base_lr: 1e-3
+type: "Adam"
 lr_policy: "fixed"
 stepsize: 400
 gamma: 0.1

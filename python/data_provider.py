@@ -7,12 +7,14 @@ import re
 import multiprocessing
 import ipdb
 
+COCO = True
+
 def worker(data_provider,images,batch,masks):
     try:
         for i,image_path in enumerate(images):
            img_r, mask_r = data_provider.get_tuple_data_point(image_path)
            coin = np.random.uniform(0, 1, 1)
-           if coin <= 0.7 and (i < len(images)-1):
+           if coin <= 0.7 and (i < len(images)-1) and False:
               # data_provider.use_data_aug = False
                img_2,gt_2 = data_provider.get_tuple_data_point(images[i + 1], False)
                img_r, mask_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2)
@@ -37,7 +39,7 @@ class DataProvider(object) :
                  batch_size = 32, use_data_aug = True,threshold_param = -1,
                  img_width=128,img_height=128):
 
-        self.gt_ext = "silhouette"
+        self.gt_ext = "silhuette"
         self.color_ext = "color"
         self.batch_size = batch_size
         self.shuffle = shuffle_data
@@ -91,8 +93,10 @@ class DataProvider(object) :
 
         # subtract mean
         img_r -= np.array([104, 117, 123], dtype=np.float32)
-
-        gt_path = image_path.replace(self.color_ext, self.gt_ext)
+        if COCO:
+            gt_path = image_path.replace(self.color_ext, self.color_ext+'_'+self.gt_ext)
+        else:
+            gt_path = image_path.replace(self.color_ext, self.gt_ext)
         self.gt_path = gt_path
         if not os.path.isfile(gt_path):
             print 'gt not found {}'.format(gt_path)

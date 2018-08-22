@@ -1,8 +1,0 @@
-net: "/home/or/caffe-BGS-yahav/or/Unet/proto/train_prelu_v2.prototxt"
-base_lr: 1e-3
-type: "Adam"
-lr_policy: "step"
-stepsize: 3000
-gamma: 0.75
-momentum: 0.9
-weight_decay: 0.00005
