@@ -5,12 +5,16 @@ import data_augmentation
 import numpy as np
 import re
 import multiprocessing
+import matplotlib.pyplot as plt
 import ipdb
 
 COCO = True
+indx = 1
 
 def worker(data_provider,images,batch,masks):
     try:
+        global indx
+       # data_provider.use_data_aug = False
         for i,image_path in enumerate(images):
            img_r, mask_r = data_provider.get_tuple_data_point(image_path)
            coin = np.random.uniform(0, 1, 1)
@@ -20,6 +24,14 @@ def worker(data_provider,images,batch,masks):
                img_r, mask_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2)
                #data_provider.use_data_aug = True
 
+
+           #ipdb.set_trace()
+           #plt.subplot(211)
+           #plt.imshow(img_r.copy().transpose([1,2,0])/255.0)
+           #plt.subplot(212)
+           #plt.imshow(mask_r[0]/255.0)
+           #plt.savefig("COCO_"+str(indx)+".png")
+           #indx += 1
            batch.append(img_r)
            masks.append(mask_r)
     except:
@@ -92,7 +104,7 @@ class DataProvider(object) :
                 img_r = data_augmentation.gamma_correction(img_r)
 
         # subtract mean
-        img_r -= np.array([104, 117, 123], dtype=np.float32)
+        img_r -= np.array([113, 102, 93], dtype=np.float32)
         if COCO:
             gt_path = image_path.replace(self.color_ext, self.color_ext+'_'+self.gt_ext)
         else:
@@ -122,7 +134,7 @@ class DataProvider(object) :
         if self.use_data_aug == True:
             # rotation / filipping data augmentation
             coin = np.random.uniform(0, 1, 1)
-            if image_path and coin <= 0.7:
+            if image_path and coin <= -1:
                 img_r, mask_r = data_augmentation.translate(img_r, mask_r)
             else:
                 if coin <= 0.33:

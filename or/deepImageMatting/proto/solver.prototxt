@@ -1,5 +1,5 @@
-net: "/home/or/caffe-BGS-win/or/deepImageMatting/proto/train_p1.prototxt"
-base_lr: 1e-3
+net: "/home/or/caffe-BGS-yahav/or/deepImageMatting/proto/train_p1.prototxt"
+base_lr: 1e-4
 type: "Adam"
 lr_policy: "fixed"
 stepsize: 400
