@@ -86,7 +86,7 @@ def mixup(image1, image2, gt1, gt2, trimap1 = None, trimap2 = None):
     return image1, gt1, trimap1
 
 
-def mixup_prob(image1, image2, gt1, gt2, trimap1 = None, trimap2 = None):
+def mixup_stitch_old(image1, image2, gt1, gt2, trimap1 = None, trimap2 = None):
     dim, rows, cols = image1.shpae
     while(1):
         x1 = randint(int(0.33*cols), int(0.66*cols))
@@ -112,3 +112,38 @@ def mixup_prob(image1, image2, gt1, gt2, trimap1 = None, trimap2 = None):
                 trimap1[:, y, :int((y-b)/a)]  = trimap2[:, y, :int((y-b)/a)]
 
     return image1, gt1, trimap1
+
+
+def mixup_stitch(image1, image2, gt1, gt2, trimap1 = None, trimap2 = None):
+    dim, rows, cols = image1.shape
+    #ipdb.set_trace()
+    #print '1'
+    while(1):
+        nonzeros = cv2.findNonZero(gt1[0].astype(np.uint8))
+        pnt1 = np.random.randint(0, len(nonzeros))
+        pnt2 = np.random.randint(0, len(nonzeros))
+        x1, y1 = nonzeros[pnt1][0]
+        x2, y2 = nonzeros[pnt2][0]
+        if len(set([x1, x2, y1, y2])) == 4:
+            a = float(y1-y2)/(x1-x2)
+            b = y1 - a*x1
+            if a!=1.0:
+                break
+    #ipdb.set_trace()
+    #print '2'
+    if abs(a)<1.0:
+        for x in range(cols):
+            image1[:, :int(a*x+b), x] = image2[:, :int(a*x+b), x]
+            gt1[:, :int(a*x+b), x] = gt2[:, int(a*x+b), x]
+            #if trimap1 is not None:
+                #trimap1[:, :int(a*x+b), x] = trimap2[:, int(a*x+b), x]
+    #ipdb.set_trace()
+    else:
+        for y in range(rows):
+            image1[:, y, :int((y-b)/a)] = image2[:, y, :int((y-b)/a)]
+            gt1[:, y, :int((y-b)/a)] = gt2[:, y, :int((y-b)/a)]
+            #if trimap1 is not None:
+                #trimap1[:, y, :int((y-b)/a)]  = trimap2[:, y, :int((y-b)/a)]
+    #print image1.shape
+    #print gt1.shape
+    return image1, gt1#, trimap1

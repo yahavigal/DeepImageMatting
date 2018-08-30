@@ -18,10 +18,10 @@ def worker(data_provider,images,batch,masks):
         for i,image_path in enumerate(images):
            img_r, mask_r = data_provider.get_tuple_data_point(image_path)
            coin = np.random.uniform(0, 1, 1)
-           if coin <= 0.7 and (i < len(images)-1) and False:
+           if coin <= 0.7 and (i < len(images)-1):
               # data_provider.use_data_aug = False
                img_2,gt_2 = data_provider.get_tuple_data_point(images[i + 1], False)
-               img_r, mask_r = data_augmentation.mixup_prob(img_r, img_2, mask_r, gt_2)
+               img_r, mask_r = data_augmentation.mixup_stitch(img_r, img_2, mask_r, gt_2)
                #data_provider.use_data_aug = True
 
 
