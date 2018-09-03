@@ -1,0 +1,11 @@
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average loss on test: 10775.1767578 variance 181469744.0
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average loss on train: 5832.15136719 variance 7231394.5
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_absdiff on test: 0.0859539434314 variance 0.00564810400829
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_absdiff on train: 0.0561692751944 variance 0.0002518708352
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_accuracy on test: 0.803501367569 variance 0.0247266031802
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_accuracy on train: 0.896646380424 variance 0.000815781240817
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_gradient on test: 0.135529220104 variance 0.00447421055287
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average mask_gradient on train: 0.193954914808 variance 0.00208398746327
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average fs_mask_absdiff on test: 82.6015625 variance 1726.36669922
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average fs_mask_accuracy on test: 0.804638737871 variance 0.0247996477853
+ortrainubuntu9 deepImageMatting_224X224_threshold_-1 average fs_mask_gradient on test: 0.103462493765 variance 0.00199407346959

@@ -1,0 +1,8 @@
+net: "/home/or/caffe-BGS-yahav/or/deepImageMatting/proto/train_p1.prototxt"
+base_lr: 1e-5
+type: "Adam"
+lr_policy: "fixed"
+stepsize: 400
+gamma: 0.1
+momentum: 0.9
+weight_decay: 0.00005
